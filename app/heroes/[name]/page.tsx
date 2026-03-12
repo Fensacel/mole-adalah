@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
+
+export const runtime = 'edge';
 import Link from "next/link";
 import {
   getHeroDetail,

@@ -1,5 +1,7 @@
 import { getAllHeroes } from "@/lib/api";
 import HeroSearchInput from "@/components/HeroSearchInput";
+
+export const runtime = 'edge';
 import Image from "next/image";
 import Link from "next/link";
 

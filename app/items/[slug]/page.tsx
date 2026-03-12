@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getItemBySlug } from "@/lib/items";
 
+export const runtime = 'edge';
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

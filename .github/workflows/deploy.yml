@@ -33,4 +33,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .vercel/output/static --project-name=mlbb-analytics
+          command: pages deploy .vercel/output/static --project-name=draft-whisperer

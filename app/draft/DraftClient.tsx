@@ -23,13 +23,42 @@ const ROLES: { label: string; value: Role }[] = [
 
 interface RankHero { name: string; hero_id: number; win_rate: number; ban_rate: number; use_rate: number; }
 interface CounterHero { name: string; head: string; hero_id: number; hero_win_rate: number; increase_win_rate: number; }
-interface HeroDetail { name: string; hero_id: number; role: string[]; head: string; }
+
+function normalizeRoleLabel(value: string): Role | null {
+  const v = value.trim().toLowerCase();
+  if (!v) return null;
+  if (v === 'all') return 'all';
+  if (v === 'mm' || v.includes('marksman')) return 'marksman';
+  if (v.includes('assassin')) return 'assassin';
+  if (v.includes('fighter')) return 'fighter';
+  if (v.includes('tank')) return 'tank';
+  if (v.includes('mage')) return 'mage';
+  if (v.includes('support')) return 'support';
+  return null;
+}
+
+function calcWinProbability(blueRates: number[], redRates: number[]) {
+  if (!blueRates.length && !redRates.length) return null;
+  const blueAvg = blueRates.length ? blueRates.reduce((a, b) => a + b, 0) / blueRates.length : 0.5;
+  const redAvg = redRates.length ? redRates.reduce((a, b) => a + b, 0) / redRates.length : 0.5;
+  const total = blueAvg + redAvg;
+  if (total <= 0) return { blue: 50, red: 50 };
+  return { blue: (blueAvg / total) * 100, red: (redAvg / total) * 100 };
+}
 
 function createBanSlots(count: number) {
   return Array.from({ length: count }, () => null as HeroListItem | null);
 }
 
-export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[]; ranks: RankHero[] }) {
+export default function DraftClient({
+  heroes,
+  ranks,
+  roleMap,
+}: {
+  heroes: HeroListItem[];
+  ranks: RankHero[];
+  roleMap: Record<number, string[]>;
+}) {
   const [side, setSide] = useState<Team | null>(null);
   const [banCount, setBanCount] = useState<3 | 4 | 5>(3);
   const [phase, setPhase] = useState<Phase>('setup');
@@ -43,7 +72,6 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
   const [bluePicks, setBluePicks] = useState<(HeroListItem | null)[]>([null, null, null, null, null]);
   const [redPicks,  setRedPicks]  = useState<(HeroListItem | null)[]>([null, null, null, null, null]);
   const [usedIds,   setUsedIds]   = useState<Set<number>>(new Set());
-  const [heroRoles, setHeroRoles] = useState<Map<number, string[]>>(new Map());
 
 
   const [selected, setSelected] = useState<HeroListItem | null>(null);
@@ -57,10 +85,23 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
   );
   const currentTurn: Team = phase === 'ban' ? banTurns[Math.min(banStep, banTurns.length - 1)] : PICK_TURNS[Math.min(pickStep, PICK_TURNS.length - 1)];
 
-  // Filter heroes by selected role
+  // Filter and sort hero pool by role + win rate
   const filteredHeroes = useMemo(() => {
-    return heroes.filter(h => !usedIds.has(h.hero_id));
-  }, [heroes, usedIds]);
+    const base = heroes.filter((hero) => {
+      if (usedIds.has(hero.hero_id)) return false;
+      if (selectedRole === 'all') return true;
+      const roles = (roleMap[hero.hero_id] ?? [])
+        .map((role) => normalizeRoleLabel(role))
+        .filter((role): role is Exclude<Role, 'all'> => !!role && role !== 'all');
+      return roles.includes(selectedRole);
+    });
+
+    return base.sort((a, b) => {
+      const aWR = rankMap.get(a.name) ?? 0;
+      const bWR = rankMap.get(b.name) ?? 0;
+      return bWR - aWR;
+    });
+  }, [heroes, usedIds, selectedRole, roleMap, rankMap]);
 
   const handleHeroClick = async (hero: HeroListItem) => {
     if (usedIds.has(hero.hero_id)) return;
@@ -165,12 +206,32 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
   const winProb = (() => {
     const bWRs = bluePicks.filter(Boolean).map(h => rankMap.get(h!.name) ?? 0.5);
     const rWRs = redPicks.filter(Boolean).map(h => rankMap.get(h!.name) ?? 0.5);
-    if (!bWRs.length && !rWRs.length) return null;
-    const bAvg = bWRs.length ? bWRs.reduce((a, b) => a + b, 0) / bWRs.length : 0.5;
-    const rAvg = rWRs.length ? rWRs.reduce((a, b) => a + b, 0) / rWRs.length : 0.5;
-    const total = bAvg + rAvg;
-    return { blue: bAvg / total * 100, red: rAvg / total * 100 };
+    return calcWinProbability(bWRs, rWRs);
   })();
+
+  const projectedWinProb = (() => {
+    if (!selected || phase !== 'pick') return null;
+    const bWRs = bluePicks.filter(Boolean).map(h => rankMap.get(h!.name) ?? 0.5);
+    const rWRs = redPicks.filter(Boolean).map(h => rankMap.get(h!.name) ?? 0.5);
+    const selectedRate = rankMap.get(selected.name) ?? 0.5;
+    if (currentTurn === 'blue') bWRs.push(selectedRate);
+    else rWRs.push(selectedRate);
+    return calcWinProbability(bWRs, rWRs);
+  })();
+
+  const bluePickStats = useMemo(() => {
+    const picks = bluePicks.filter(Boolean) as HeroListItem[];
+    const rates = picks.map((hero) => ({ hero, rate: rankMap.get(hero.name) ?? 0.5 }));
+    const avg = rates.length ? rates.reduce((sum, item) => sum + item.rate, 0) / rates.length : 0.5;
+    return { rates, avg };
+  }, [bluePicks, rankMap]);
+
+  const redPickStats = useMemo(() => {
+    const picks = redPicks.filter(Boolean) as HeroListItem[];
+    const rates = picks.map((hero) => ({ hero, rate: rankMap.get(hero.name) ?? 0.5 }));
+    const avg = rates.length ? rates.reduce((sum, item) => sum + item.rate, 0) / rates.length : 0.5;
+    return { rates, avg };
+  }, [redPicks, rankMap]);
 
   // ─── SETUP ───────────────────────────────────────────────────────────────────
   if (phase === 'setup') {
@@ -188,8 +249,8 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
                 onClick={() => setBanCount(option)}
                 className={`rounded-xl border px-4 py-3 text-sm font-black transition-all ${
                   banCount === option
-                    ? 'border-orange-500 bg-orange-500 text-white'
-                    : 'border-white/10 bg-white/5 text-gray-300 hover:border-orange-500/40 hover:bg-white/10'
+                    ? 'border-blue-500 bg-blue-500 text-white'
+                    : 'border-white/10 bg-white/5 text-gray-300 hover:border-blue-500/40 hover:bg-white/10'
                 }`}
               >
                 {option} Ban
@@ -236,7 +297,7 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
                   h
                     ? 'border-blue-500/60'
                     : phase === 'pick' && currentTurn === 'blue' && bluePicks.findIndex(p => p === null) === i
-                    ? 'border-orange-400 animate-pulse'
+                    ? 'border-blue-400 animate-pulse'
                     : 'border-white/10'
                 }`}
               >
@@ -300,8 +361,14 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
                   <div className="mt-1.5 text-xs text-gray-400">
                     <span className="text-blue-400 font-bold">{winProb.blue.toFixed(0)}%</span> vs{' '}
                     <span className="text-red-400 font-bold">{winProb.red.toFixed(0)}%</span>
+                    <span className="ml-2 text-[10px] text-gray-500">
+                      Unggul: {winProb.blue >= winProb.red ? 'Blue' : 'Red'}
+                    </span>
                   </div>
                 )}
+                <p className="mt-1 text-[9px] md:text-[10px] text-gray-500 leading-relaxed">
+                  Catatan: Win Probability adalah estimasi kekuatan draft dari data WR hero yang dipilih, bukan jaminan hasil match.
+                </p>
               </div>
 
               {/* Red Bans */}
@@ -332,49 +399,61 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
 
           {/* Role Tabs */}
           {phase !== 'done' && (
-            <div className="flex gap-1 md:gap-2 mb-3 md:mb-4 overflow-x-auto pb-1 scrollbar-hide">
+            <div>
+              <div className="mb-2 text-[10px] text-gray-500 uppercase tracking-wider">
+                Filter role aktif: <span className="text-gray-300 font-bold">{selectedRole === 'all' ? 'Semua' : selectedRole}</span>
+                <span className="ml-2">Pool: {filteredHeroes.length} hero</span>
+              </div>
+              <div className="flex gap-1 md:gap-2 mb-3 md:mb-4 overflow-x-auto pb-1 scrollbar-hide">
               {ROLES.map((role) => (
                 <button
                   key={role.value}
                   onClick={() => setSelectedRole(role.value)}
                   className={`px-2 md:px-3 py-1 rounded-md text-[10px] md:text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
                     selectedRole === role.value
-                      ? 'bg-orange-500 text-white'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-white/5 text-gray-400 hover:bg-white/10'
                   }`}
                 >
                   {role.label}
                 </button>
               ))}
+              </div>
             </div>
           )}
 
           {/* Hero Grid OR Done Screen */}
           {phase !== 'done' ? (
             <div className="flex-1 bg-[#13151f] border border-white/5 rounded-lg p-2 md:p-4 overflow-y-auto">
-              <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-9 gap-1.5 md:gap-2">
-                {filteredHeroes.map((hero) => (
-                  <button
-                    key={hero.hero_id}
-                    onClick={() => handleHeroClick(hero)}
-                    title={hero.name}
-                    className={`relative rounded-full aspect-square overflow-hidden border-2 transition-all hover:scale-110 ${
-                      selected?.hero_id === hero.hero_id
-                        ? 'border-orange-500 ring-2 ring-orange-500/50 scale-110 z-10'
-                        : 'border-white/10 hover:border-orange-500/40'
-                    }`}
-                  >
-                    <Image src={hero.head} alt={hero.name} fill className="object-cover" unoptimized sizes="80px" />
-                  </button>
-                ))}
-              </div>
+              {filteredHeroes.length > 0 ? (
+                <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-9 gap-1.5 md:gap-2">
+                  {filteredHeroes.map((hero) => (
+                    <button
+                      key={hero.hero_id}
+                      onClick={() => handleHeroClick(hero)}
+                      title={hero.name}
+                      className={`relative rounded-full aspect-square overflow-hidden border-2 transition-all hover:scale-110 ${
+                        selected?.hero_id === hero.hero_id
+                          ? 'border-blue-500 ring-2 ring-blue-500/50 scale-110 z-10'
+                          : 'border-white/10 hover:border-blue-500/40'
+                      }`}
+                    >
+                      <Image src={hero.head} alt={hero.name} fill className="object-cover" unoptimized sizes="80px" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-full min-h-[220px] flex items-center justify-center text-center text-gray-500 text-sm">
+                  Tidak ada hero tersisa untuk role ini. Coba role lain.
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex-1 bg-[#13151f] border border-green-500/20 rounded-lg p-4 md:p-8 flex flex-col items-center justify-center">
               <p className="text-4xl md:text-5xl mb-3 md:mb-4">🏆</p>
               <h2 className="text-xl md:text-2xl font-black mb-4 md:mb-6">DRAFT SELESAI!</h2>
               {winProb && (
-                <div className="text-center mb-6">
+                <div className="text-center mb-6 w-full max-w-3xl">
                   <p className="text-gray-400 text-xs md:text-sm mb-3">Estimasi Probabilitas Menang</p>
                   <div className="flex justify-center gap-6 md:gap-12 mb-4">
                     <div>
@@ -391,11 +470,47 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
                     <div className="bg-blue-500" style={{ width: `${winProb.blue}%` }} />
                     <div className="bg-red-500" style={{ width: `${winProb.red}%` }} />
                   </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:text-sm">
+                    <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-left">
+                      <p className="text-[10px] uppercase tracking-wider text-blue-200/80">Avg WR Tim Biru</p>
+                      <p className="text-xl font-black text-blue-300 mt-1">{(bluePickStats.avg * 100).toFixed(1)}%</p>
+                    </div>
+                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-left">
+                      <p className="text-[10px] uppercase tracking-wider text-red-200/80">Avg WR Tim Merah</p>
+                      <p className="text-xl font-black text-red-300 mt-1">{(redPickStats.avg * 100).toFixed(1)}%</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid md:grid-cols-2 gap-3 text-left">
+                    <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Kontribusi Pick Biru</p>
+                      <div className="space-y-1.5">
+                        {bluePickStats.rates.map((item) => (
+                          <div key={item.hero.hero_id} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-300 truncate pr-2">{item.hero.name}</span>
+                            <span className="text-blue-300 font-bold">{(item.rate * 100).toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Kontribusi Pick Merah</p>
+                      <div className="space-y-1.5">
+                        {redPickStats.rates.map((item) => (
+                          <div key={item.hero.hero_id} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-300 truncate pr-2">{item.hero.name}</span>
+                            <span className="text-red-300 font-bold">{(item.rate * 100).toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
               <button
                 onClick={reset}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition-colors active:scale-95 text-sm md:text-base"
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition-colors active:scale-95 text-sm md:text-base"
               >
                 ↺ ULANG DRAFT
               </button>
@@ -433,7 +548,7 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
                   h
                     ? 'border-red-500/60'
                     : phase === 'pick' && currentTurn === 'red' && redPicks.findIndex(p => p === null) === i
-                    ? 'border-orange-400 animate-pulse'
+                    ? 'border-blue-400 animate-pulse'
                     : 'border-white/10'
                 }`}
               >
@@ -468,7 +583,7 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
                   : 'border-red-500/20 bg-red-500/10'
               }`}
             >
-              <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-orange-500 flex-shrink-0">
+              <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-blue-500 flex-shrink-0">
                 <Image src={selected.head} alt={selected.name} fill className="object-cover" unoptimized sizes="64px" />
               </div>
               <div className="flex-1 min-w-0">
@@ -501,6 +616,12 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
 
             {/* Counter Info */}
             <div className="p-4 min-h-[90px]">
+              <div className="mb-3 rounded-md border border-white/10 bg-black/20 px-2.5 py-2">
+                <p className="text-[10px] text-gray-400 leading-relaxed">
+                  Catatan: Counter Rate (CR) berasal dari statistik matchup API hero-counter. Nilai <span className="text-gray-300">+CR</span> berarti cenderung lebih unggul melawan hero ini, <span className="text-gray-300">-CR</span> berarti cenderung lebih lemah.
+                </p>
+              </div>
+
               {counterLoading ? (
                 <div className="flex items-center justify-center h-16 text-gray-500 text-sm">Memuat data counter...</div>
               ) : counterData && counterData.counters.length > 0 ? (
@@ -514,13 +635,29 @@ export default function DraftClient({ heroes, ranks }: { heroes: HeroListItem[];
                         <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-red-500/50">
                           <Image src={c.head} alt={c.name} fill className="object-cover" unoptimized sizes="40px" />
                         </div>
-                        <span className="text-[9px] text-gray-400 text-center w-10 truncate">{c.name}</span>
+                        <span className="text-[9px] text-gray-400 text-center w-12 truncate">{c.name}</span>
+                        <span className={`text-[9px] font-bold ${c.increase_win_rate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          CR {c.increase_win_rate >= 0 ? '+' : ''}{(c.increase_win_rate * 100).toFixed(1)}%
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
                 <p className="text-xs text-gray-600 text-center py-4">Data counter tidak tersedia</p>
+              )}
+
+              {projectedWinProb && (
+                <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Jika dipick sekarang</p>
+                  <p className="text-xs text-gray-300">
+                    Win Probability: <span className="text-blue-400 font-bold">Blue {projectedWinProb.blue.toFixed(0)}%</span> vs{' '}
+                    <span className="text-red-400 font-bold">Red {projectedWinProb.red.toFixed(0)}%</span>
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Prediksi unggul: {projectedWinProb.blue >= projectedWinProb.red ? 'Tim Biru' : 'Tim Merah'}
+                  </p>
+                </div>
               )}
             </div>
 

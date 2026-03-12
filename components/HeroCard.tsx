@@ -22,7 +22,7 @@ export default function HeroCard({ name, head, win_rate, ban_rate, use_rate, sta
   return (
     <Link
       href={`/heroes/${slug}`}
-      className="group relative bg-[#13151f] border border-white/5 rounded-2xl overflow-hidden hover:border-orange-500/40 hover:shadow-[0_0_24px_rgba(249,115,22,0.12)] transition-all duration-300 flex flex-col"
+      className="group relative bg-[#13151f] border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/40 hover:shadow-[0_0_24px_rgba(59,130,246,0.16)] transition-all duration-300 flex flex-col"
     >
       {/* Hero image */}
       <div className="relative aspect-square w-full overflow-hidden bg-[#0a0c14]">
@@ -66,7 +66,7 @@ export default function HeroCard({ name, head, win_rate, ban_rate, use_rate, sta
       </div>
 
       {/* Hover glow */}
-      <div className="absolute inset-0 rounded-2xl ring-1 ring-orange-500/0 group-hover:ring-orange-500/30 transition-all duration-300 pointer-events-none" />
+      <div className="absolute inset-0 rounded-2xl ring-1 ring-blue-500/0 group-hover:ring-blue-500/30 transition-all duration-300 pointer-events-none" />
     </Link>
   );
 }

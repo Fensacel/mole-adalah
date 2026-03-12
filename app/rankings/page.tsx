@@ -2,7 +2,7 @@
 import RankingsClient from './RankingsClient';
 
 export const metadata = {
-  title: 'Rankings - MLBB Analytics',
+  title: 'Rankings - DraftWhisperer',
   description: 'Ranking hero Mobile Legends.',
 };
 

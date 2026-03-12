@@ -1,71 +1,14 @@
+import rawItems from "@/app/items/items_data.json";
+
 export interface ItemData {
   name: string;
+  slug: string;
   image_url: string;
+  stats: string[];
 }
 
-export const items: ItemData[] = [
-  { name: "Dominance Ice", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/e/e3/Dominance_Ice.png" },
-  { name: "Oracle", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/1/17/Oracle.png" },
-  { name: "Holy Crystal", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/6/64/Holy_Crystal.png" },
-  { name: "Immortality", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/8/84/Immortality.png" },
-  { name: "Magic Boots", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/5/5a/Magic_Shoes.png" },
-  { name: "Antique Cuirass", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/4/40/Antique_Cuirass.png" },
-  { name: "Endless Battle", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/2/2b/Endless_Battle.png" },
-  { name: "Tough Boots", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/8/89/Tough_Boots.png" },
-  { name: "Guardian Helmet", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/a/a3/Guardian_Helmet.png" },
-  { name: "Rapid Boots", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/a/a4/Rapid_Boots.png" },
-  { name: "Athena's Shield", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/1/15/Athena%27s_Shield.png" },
-  { name: "War Axe", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/7/70/War_Axe.png" },
-  { name: "Berserker Fury", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/6/6c/Berserker%27s_Fury.png" },
-  { name: "Blade of Despair", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/d/d5/Blade_of_Despair.png" },
-  { name: "Concentrated Energy", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/4/4e/Concentrated_Energy.png" },
-  { name: "Corrosion Scythe", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/f/f3/Corrosion_Scythe.png" },
-  { name: "Divine Glaive", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/9/9a/Divine_Glaive.png" },
-  { name: "Hunter Strike", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/b/b9/Hunter_Strike.png" },
-  { name: "Malefic Roar", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/1/12/Malefic_Roar.png" },
-  { name: "Queen's Wings", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/f/f4/Queen%27s_Wings.png" },
-  { name: "Rose Gold Meteor", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/2/2b/Rose_Gold_Meteor.png" },
-  { name: "Sea Halberd", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/8/83/Sea_Halberd.png" },
-  { name: "Sky Piercer", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/4/4f/Sky_Piercer.png" },
-  { name: "Windtalker", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/4/45/Windtalker.png" },
-  { name: "Arcane Boots", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/1/15/Arcane_Boots.png" },
-  { name: "Brute Force Breastplate", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/f/f6/Brute_Force_Breastplate.png" },
-  { name: "Swift Boots", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/0/07/Swift_Boots.png" },
-  { name: "Thunder Belt", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/d/dd/Thunder_Belt.png" },
-  { name: "Warrior Boots", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/4/4b/Warrior_Boots.png" },
-  { name: "Blade of the Heptaseas", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/e/ed/Blade_of_the_Heptaseas.png" },
-  { name: "Blood Wings", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/4/44/Blood_Wings.png" },
-  { name: "Chastise Pauldron", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/2/2f/Chastise_Pauldron.png" },
-  { name: "Fleeting Time", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/7/71/Fleeting_Time.png" },
-  { name: "Genius Wand", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/2/20/Genius_Wand.png" },
-  { name: "Glowing Wand", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/7/7a/Glowing_Wand.png" },
-  { name: "Haas Claws", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/f/fd/Haas%27_Claws.png" },
-  { name: "Clock of Destiny", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/4/4a/Clock_of_Destiny.png" },
-  { name: "Demon Hunter Sword", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/1/1a/Demon_Hunter_Sword.png" },
-  { name: "Golden Staff", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/8/80/Golden_Staff.png" },
-  { name: "Great Dragon Spear", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/d/d4/Great_Dragon_Spear.png" },
-  { name: "Ice Queen Wand", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/d/da/Ice_Queen_Wand.png" },
-  { name: "Lightning Truncheon", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/e/ee/Lightning_Truncheon.png" },
-  { name: "Malefic Gun", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/7/72/Malefic_Gun.png" },
-  { name: "Radiant Armor", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/d/d8/Radiant_Armor.png" },
-  { name: "Cursed Helmet", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/8/80/Cursed_Helmet.png" },
-  { name: "Demon Shoes", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/1/17/Demon_Shoes.png" },
-  { name: "Feather of Heaven", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/e/ed/Feather_of_Heaven.png" },
-  { name: "Flask of the Oasis", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/c/c5/Flask_of_the_Oasis.png" },
-  { name: "Starlium Scythe", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/2/26/Starlium_Scythe.png" },
-  { name: "Wind of Nature", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/e/e3/Wind_of_Nature.png" },
-  { name: "Wishing Lantern", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/0/07/Wishing_Lantern.png" },
-  { name: "Azure Blade", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/6/6d/Azure_Blade.png" },
-  { name: "Black Ice Shield", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/5/5d/Black_Ice_Shield.png" },
-  { name: "Blade Armor", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/d/d9/Blade_Armor.png" },
-  { name: "Dreadnaught Armor", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/0/0f/Dreadnaught_Armor.png" },
-  { name: "Elegant Gem", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/d/d4/Elegant_Gem.png" },
-  { name: "Enchanted Talisman", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/2/21/Enchanted_Talisman.png" },
-  { name: "Fury Hammer", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/5/52/Fury_Hammer.png" },
-  { name: "Legion Sword", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/1/1e/Legion_Sword.png" },
-  { name: "Magic Blade", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/a/ae/Magic_Blade.png" },
-  { name: "Molten Essence", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/8/8c/Molten_Essence.png" },
-  { name: "Silence Robe", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/a/a4/Silence_Robe.png" },
-  { name: "Steel Legplates", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/3/3c/Steel_Legplates.png" },
-  { name: "Winter Crown", image_url: "https://static.wikia.nocookie.net/mobile-legends/images/9/9d/Winter_Crown.png" },
-].sort((a, b) => a.name.localeCompare(b.name));
+export const items: ItemData[] = (rawItems as ItemData[]).slice();
+
+export function getItemBySlug(slug: string) {
+  return items.find((item) => item.slug === slug);
+}

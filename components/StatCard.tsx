@@ -25,10 +25,10 @@ const colorMap = {
     glow: "shadow-[0_0_20px_rgba(59,130,246,0.1)]",
   },
   orange: {
-    bg: "bg-orange-500/10",
-    border: "border-orange-500/20",
-    text: "text-orange-400",
-    glow: "shadow-[0_0_20px_rgba(249,115,22,0.1)]",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20",
+    text: "text-blue-400",
+    glow: "shadow-[0_0_20px_rgba(59,130,246,0.12)]",
   },
 };
 

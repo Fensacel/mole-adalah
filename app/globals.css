@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --accent: #f97316;
+  --accent: #3b82f6;
 }
 
 * {
@@ -24,7 +24,7 @@ html {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #f97316;
+  background: #3b82f6;
 }
 
 :root {

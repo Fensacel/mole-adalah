@@ -18,17 +18,17 @@ export default async function HomePage() {
     <div>
       {/* Banner */}
       <section className="relative overflow-hidden border-b border-white/5">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(249,115,22,0.08),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.12),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.05),transparent_60%)]" />
         <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 rounded-full px-3 py-1 text-xs text-orange-400 mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-              Data real-time dari mlbb-stats.rone.dev
+            <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1 text-xs text-blue-400 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+              Mobile Lengends Bang Bang
             </div>
             <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-4">
               Analitik Hero{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
                 MLBB
               </span>
             </h1>
@@ -37,7 +37,7 @@ export default async function HomePage() {
               Legends: Bang Bang.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link href="/heroes" className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors">
+              <Link href="/heroes" className="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors">
                 Jelajahi Hero <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/rankings" className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors">
@@ -50,11 +50,11 @@ export default async function HomePage() {
 
       {/* Stats */}
       <section className="max-w-7xl mx-auto px-4 py-8 sm:py-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[
             { icon: Users, label: "Total Hero", value: `${heroes.length}`, color: "text-blue-400" },
-            { icon: BarChart2, label: "Punya Data Rate", value: `${rankings.length}`, color: "text-green-400" },
-            { icon: Swords, label: "Tertinggi WR", value: topHeroes[0] ? `${(topHeroes[0].win_rate * 100).toFixed(1)}%` : "—", color: "text-orange-400" },
+            
+            { icon: Swords, label: "Tertinggi WR", value: topHeroes[0] ? `${(topHeroes[0].win_rate * 100).toFixed(1)}%` : "—", color: "text-blue-400" },
             { icon: Shield, label: "Tertinggi BR", value: rankings.length ? `${(Math.max(...rankings.map((r) => r.ban_rate)) * 100).toFixed(1)}%` : "—", color: "text-purple-400" },
           ].map(({ icon: Icon, label, value, color }) => (
             <div key={label} className="bg-[#13151f] border border-white/5 rounded-xl p-4 flex items-center gap-3">
@@ -75,7 +75,7 @@ export default async function HomePage() {
             <h2 className="text-xl font-bold">Top Win Rate</h2>
             <p className="text-sm text-gray-500">Hero dengan win rate tertinggi saat ini</p>
           </div>
-          <Link href="/rankings" className="text-sm text-orange-400 hover:text-orange-300 flex items-center gap-1">
+          <Link href="/rankings" className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1">
             Lihat Semua <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -93,7 +93,7 @@ export default async function HomePage() {
             <h2 className="text-xl font-bold">Semua Hero</h2>
             <p className="text-sm text-gray-500">{heroes.length} hero tersedia</p>
           </div>
-          <Link href="/heroes" className="text-sm text-orange-400 hover:text-orange-300 flex items-center gap-1">
+          <Link href="/heroes" className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1">
             Lihat Semua <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -116,7 +116,7 @@ export default async function HomePage() {
           <h2 className="text-2xl font-bold text-center mb-10">Fitur Dashboard</h2>
           <div className="grid sm:grid-cols-3 gap-6">
             {[
-              { icon: BarChart2, title: "Statistik Lengkap", desc: "Win Rate, Ban Rate, dan Use Rate untuk setiap hero dengan visualisasi interaktif.", color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/20" },
+              { icon: BarChart2, title: "Statistik Lengkap", desc: "Win Rate, Ban Rate, dan Use Rate untuk setiap hero dengan visualisasi interaktif.", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
               { icon: Swords, title: "Counter & Synergy", desc: "Temukan hero terbaik untuk melawan atau bermain bersama hero pilihanmu.", color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
               { icon: Shield, title: "Grafik Perbandingan", desc: "Bandingkan win rate hero dengan hero counter-nya secara visual.", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
             ].map(({ icon: Icon, title, desc, color, bg }) => (

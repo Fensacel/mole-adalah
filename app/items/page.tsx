@@ -2,10 +2,15 @@ import { items } from "@/lib/items";
 import ItemsClient from "./ItemsClient";
 
 export const metadata = {
-  title: "Item MLBB - MLBB Analytics",
+  title: "Item MLBB - DraftWhisperer",
   description: "Daftar item Mobile Legends lengkap beserta gambar item.",
 };
 
-export default function ItemsPage() {
-  return <ItemsClient initialItems={items} />;
+interface Props {
+  searchParams: Promise<{ search?: string }>;
+}
+
+export default async function ItemsPage({ searchParams }: Props) {
+  const params = await searchParams;
+  return <ItemsClient initialItems={items} initialSearch={params.search ?? ""} />;
 }

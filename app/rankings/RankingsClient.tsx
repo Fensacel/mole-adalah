@@ -57,7 +57,7 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
         {/* Sort Controls */}
         <div className="flex flex-wrap gap-3 mb-6">
           {([
-            { key: 'win_rate', label: 'Win Rate', active: 'bg-orange-500/30 border-orange-500 text-orange-300', base: 'bg-white/5 border-white/10 text-gray-300' },
+            { key: 'win_rate', label: 'Win Rate', active: 'bg-blue-500/30 border-blue-500 text-blue-300', base: 'bg-white/5 border-white/10 text-gray-300' },
             { key: 'ban_rate', label: 'Ban Rate', active: 'bg-purple-500/30 border-purple-500 text-purple-300', base: 'bg-white/5 border-white/10 text-gray-300' },
             { key: 'use_rate', label: 'Use Rate', active: 'bg-blue-500/30 border-blue-500 text-blue-300', base: 'bg-white/5 border-white/10 text-gray-300' },
           ] as { key: SortBy; label: string; active: string; base: string }[]).map(({ key, label, active, base }) => (
@@ -82,8 +82,9 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
         </div>
 
         <div className="rounded-2xl overflow-hidden border border-white/5 bg-[#13151f]">
+          <div className="overflow-x-auto">
           {/* Header */}
-          <div className="grid grid-cols-[48px_1fr_130px_130px_130px] gap-2 px-4 py-3 border-b border-white/5 text-xs font-bold text-gray-500 uppercase tracking-wider bg-white/[0.02]">
+          <div className="grid grid-cols-[40px_160px_95px_95px_95px] sm:grid-cols-[48px_1fr_130px_130px_130px] gap-2 px-3 sm:px-4 py-3 border-b border-white/5 text-[11px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider bg-white/[0.02] min-w-[485px] sm:min-w-0">
             <span className="text-center">#</span>
             <span>Hero</span>
             <span className="text-right cursor-pointer hover:text-white transition-colors" onClick={() => toggleSort('win_rate')}>
@@ -107,7 +108,7 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
               <Link
                 key={hero.hero_id}
                 href={`/heroes/${encodeURIComponent(hero.name)}`}
-                className={`grid grid-cols-[48px_1fr_130px_130px_130px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-colors ${rowBg}`}
+                className={`grid grid-cols-[40px_160px_95px_95px_95px] sm:grid-cols-[48px_1fr_130px_130px_130px] gap-2 px-3 sm:px-4 py-3 items-center hover:bg-white/5 transition-colors min-w-[485px] sm:min-w-0 ${rowBg}`}
               >
                 <span className={`text-center text-sm font-black ${rankColor}`}>{rankLabel}</span>
 
@@ -124,6 +125,7 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
               </Link>
             );
           })}
+          </div>
         </div>
 
         <p className="text-center text-xs text-gray-600 mt-6">

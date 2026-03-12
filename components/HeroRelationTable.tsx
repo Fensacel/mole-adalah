@@ -52,7 +52,7 @@ export default function HeroRelationTable({
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate group-hover:text-orange-400 transition-colors">
+                <p className="text-sm font-medium text-white truncate group-hover:text-blue-400 transition-colors">
                   {hero.name}
                 </p>
                 <p className="text-xs text-gray-500">

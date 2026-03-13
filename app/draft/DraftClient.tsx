@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { HeroListItem } from '@/lib/api';
 import { RotateCcw, SkipBack, X } from 'lucide-react';
@@ -293,7 +293,7 @@ export default function DraftClient({
     setPendingBanSelections([]);
   };
 
-  const applyBanBatch = (batch: HeroListItem[]) => {
+  const applyBanBatch = useCallback((batch: HeroListItem[]) => {
     if (!batch.length) return;
 
     setUsedIds((prev) => {
@@ -308,31 +308,35 @@ export default function DraftClient({
     ]);
 
     if (currentTurn === 'blue') {
-      const next = [...blueBans];
-      for (const hero of batch) {
-        const emptyIndex = next.findIndex((b) => b === null);
-        if (emptyIndex >= 0) next[emptyIndex] = hero;
-      }
-      setBlueBans(next);
+      setBlueBans((prev) => {
+        const next = [...prev];
+        for (const hero of batch) {
+          const emptyIndex = next.findIndex((b) => b === null);
+          if (emptyIndex >= 0) next[emptyIndex] = hero;
+        }
+        return next;
+      });
     } else {
-      const next = [...redBans];
-      for (const hero of batch) {
-        const emptyIndex = next.findIndex((b) => b === null);
-        if (emptyIndex >= 0) next[emptyIndex] = hero;
-      }
-      setRedBans(next);
+      setRedBans((prev) => {
+        const next = [...prev];
+        for (const hero of batch) {
+          const emptyIndex = next.findIndex((b) => b === null);
+          if (emptyIndex >= 0) next[emptyIndex] = hero;
+        }
+        return next;
+      });
     }
 
     setPendingBanSelections([]);
     if (banStep + 1 >= banTurns.length) setPhase('pick');
     else setBanStep((s) => s + 1);
-  };
+  }, [banStep, banTurns.length, currentTurn]);
 
   useEffect(() => {
     if (phase !== 'ban') return;
     if (pendingBanSelections.length !== currentBanTurn.count) return;
     applyBanBatch(pendingBanSelections);
-  }, [phase, pendingBanSelections, currentBanTurn.count]);
+  }, [phase, pendingBanSelections, currentBanTurn.count, applyBanBatch]);
 
   const confirmBanBatch = () => {
     if (phase !== 'ban') return;
@@ -519,9 +523,9 @@ export default function DraftClient({
         <div className="flex-1 order-2 flex flex-col">
           {/* Header with bans & status */}
           <div className="bg-[#13151f] border border-white/5 rounded-lg p-2.5 md:p-3 mb-3 md:mb-4">
-            <div className="grid grid-cols-[auto_1fr_auto] gap-2 md:gap-3 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-2 md:gap-3 items-start">
               {/* Blue Bans */}
-              <div className="flex gap-1 items-center">
+              <div className="flex gap-1 items-center justify-between md:justify-start">
                 <p className="text-[8px] md:text-[9px] font-bold text-blue-300 whitespace-nowrap">BANS</p>
                 <div className="flex gap-0.5 md:gap-1">
                   {blueBans.map((h, i) => (
@@ -545,7 +549,7 @@ export default function DraftClient({
               </div>
 
               {/* Status & Probability */}
-              <div className="text-center px-2">
+              <div className="text-center px-1 md:px-2 order-first md:order-none">
                 {phase !== 'done' ? (
                   <>
                     <p className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest ${phase === 'ban' ? 'text-red-400' : 'text-green-400'}`}>
@@ -581,7 +585,7 @@ export default function DraftClient({
               </div>
 
               {/* Red Bans */}
-              <div className="flex gap-1 items-center justify-end">
+              <div className="flex gap-1 items-center justify-between md:justify-end">
                 <div className="flex gap-0.5 md:gap-1 flex-row-reverse">
                   {redBans.map((h, i) => (
                     <div

@@ -45,8 +45,16 @@ const ALT_BAN_STAGE_COUNTS: Record<Exclude<DraftMode, 'standard'>, [number, numb
 };
 const ALT_SEQUENCE_LABELS: Record<Exclude<DraftMode, 'standard'>, string> = {
   custom: 'Ban 2 -> Pick 3 -> Ban 1 -> Pick 2',
-  tournament: 'Ban 3 -> Pick 3 -> Ban 2 -> Pick 2',
+  tournament: 'Ban 3 (Alt) -> Pick 3 -> Ban 2 (Alt) -> Pick 2',
 };
+
+function createAlternatingBanTurns(perTeamCount: number, firstTeam: Team = 'blue') {
+  const secondTeam: Team = firstTeam === 'blue' ? 'red' : 'blue';
+  return Array.from({ length: perTeamCount * 2 }, (_, index) => ({
+    team: index % 2 === 0 ? firstTeam : secondTeam,
+    count: 1,
+  })) as BanTurn[];
+}
 
 function normalizeRoleLabel(value: string): Role | null {
   const v = value.trim().toLowerCase();
@@ -96,6 +104,8 @@ export default function DraftClient({
   const [pickStep, setPickStep] = useState(0);
   const [customStage, setCustomStage] = useState(0); // 0 ban2, 1 pick3, 2 ban1, 3 pick2
   const [customStageStep, setCustomStageStep] = useState(0);
+  const [blueTeamName, setBlueTeamName] = useState('');
+  const [redTeamName, setRedTeamName] = useState('');
   const [selectedRole, setSelectedRole] = useState<Role>('all');
   const [history, setHistory] = useState<Array<{ type: 'ban'|'pick'; team: Team; hero: HeroListItem }>>([]);
 
@@ -127,19 +137,32 @@ export default function DraftClient({
   const customBanTurns = useMemo(() => {
     const stageCounts = draftMode === 'tournament' ? ALT_BAN_STAGE_COUNTS.tournament : ALT_BAN_STAGE_COUNTS.custom;
     const count = stageCounts[customStage === 2 ? 1 : 0] ?? stageCounts[0];
+
+    if (draftMode === 'tournament') {
+      return createAlternatingBanTurns(count);
+    }
+
     return [
       { team: 'blue', count },
       { team: 'red', count },
     ] as BanTurn[];
   }, [customStage, draftMode]);
   const activeBanTurns = draftMode === 'standard' ? banTurns : customBanTurns;
-  const activeBanStep = draftMode === 'custom' ? customStageStep : banStep;
+  const activeBanStep = draftMode === 'standard' ? banStep : customStageStep;
   const currentBanTurn = activeBanTurns[Math.min(activeBanStep, activeBanTurns.length - 1)];
   const currentTurn: Team = phase === 'ban'
     ? currentBanTurn.team
     : PICK_TURNS[Math.min(pickStep, PICK_TURNS.length - 1)];
 
   const customPickTarget = customStage === 1 ? 6 : 10;
+  const blueTeamLabel = useMemo(() => {
+    const base = draftMode === 'tournament' ? blueTeamName.trim() : 'Blue Team';
+    return base || 'Blue Team';
+  }, [blueTeamName, draftMode]);
+  const redTeamLabel = useMemo(() => {
+    const base = draftMode === 'tournament' ? redTeamName.trim() : 'Red Team';
+    return base || 'Red Team';
+  }, [redTeamName, draftMode]);
   const stageLabel = useMemo(() => {
     if (draftMode === 'standard') return null;
 
@@ -405,18 +428,44 @@ export default function DraftClient({
     }
 
     if (!selected) return;
-    const newUsedIds = new Set([...usedIds, selected.hero_id]);
-    setUsedIds(newUsedIds);
-    setHistory([...history, { type: 'pick', team: currentTurn, hero: selected }]);
+
+    const isAlreadyPicked = bluePicks.some((h) => h?.hero_id === selected.hero_id)
+      || redPicks.some((h) => h?.hero_id === selected.hero_id);
+    if (isAlreadyPicked) {
+      setSelected(null);
+      return;
+    }
+
+    const targetPicks = currentTurn === 'blue' ? bluePicks : redPicks;
+    const emptyIndex = targetPicks.findIndex((pick) => pick === null);
+    if (emptyIndex === -1) {
+      setSelected(null);
+      return;
+    }
+
+    setUsedIds((prev) => {
+      const next = new Set(prev);
+      next.add(selected.hero_id);
+      return next;
+    });
+    setHistory((prev) => [...prev, { type: 'pick', team: currentTurn, hero: selected }]);
 
     if (currentTurn === 'blue') {
-      const next = [...bluePicks];
-      next[next.findIndex(b => b === null)] = selected;
-      setBluePicks(next);
+      setBluePicks((prev) => {
+        const next = [...prev];
+        const idx = next.findIndex((b) => b === null);
+        if (idx === -1) return prev;
+        next[idx] = selected;
+        return next;
+      });
     } else {
-      const next = [...redPicks];
-      next[next.findIndex(b => b === null)] = selected;
-      setRedPicks(next);
+      setRedPicks((prev) => {
+        const next = [...prev];
+        const idx = next.findIndex((b) => b === null);
+        if (idx === -1) return prev;
+        next[idx] = selected;
+        return next;
+      });
     }
     const nextPickStep = pickStep + 1;
     if (draftMode !== 'standard') {
@@ -441,7 +490,7 @@ export default function DraftClient({
   };
 
   const undo = () => {
-    if (draftMode === 'custom') {
+    if (draftMode !== 'standard') {
       reset();
       return;
     }
@@ -602,20 +651,50 @@ export default function DraftClient({
               ? 'Tournament flow: 10 bans total, then 10 picks in split phases'
               : `Total ban phase: ${banCount * 2} bans, then 10 picks`}
           </p>
+
+          {draftMode === 'tournament' && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="text-left">
+                <p className="text-[10px] font-bold tracking-wider text-blue-300 uppercase mb-1">Blue Team Name</p>
+                <input
+                  type="text"
+                  value={blueTeamName}
+                  onChange={(e) => setBlueTeamName(e.target.value)}
+                  placeholder="Blue Team"
+                  maxLength={24}
+                  className="w-full rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-white placeholder:text-blue-200/40 outline-none focus:border-blue-400"
+                />
+              </label>
+              <label className="text-left">
+                <p className="text-[10px] font-bold tracking-wider text-red-300 uppercase mb-1">Red Team Name</p>
+                <input
+                  type="text"
+                  value={redTeamName}
+                  onChange={(e) => setRedTeamName(e.target.value)}
+                  placeholder="Red Team"
+                  maxLength={24}
+                  className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-white placeholder:text-red-200/40 outline-none focus:border-red-400"
+                />
+              </label>
+              <p className="sm:col-span-2 text-[11px] text-gray-500 text-center">
+                Match title preview: <span className="text-blue-300 font-semibold">{blueTeamLabel}</span> vs <span className="text-red-300 font-semibold">{redTeamLabel}</span>
+              </p>
+            </div>
+          )}
         </div>
         <div className="grid sm:grid-cols-2 gap-4 w-full max-w-sm">
           <button
             onClick={() => startDraft('blue')}
             className="bg-blue-500/15 border-2 border-blue-400 rounded-xl p-5 hover:bg-blue-500/25 active:scale-95 transition-all"
           >
-            <p className="font-black text-lg text-blue-300 mb-1">🔵 Blue Team</p>
+            <p className="font-black text-lg text-blue-300 mb-1">🔵 {blueTeamLabel}</p>
             <p className="text-xs text-gray-400">First Pick</p>
           </button>
           <button
             onClick={() => startDraft('red')}
             className="bg-red-500/15 border-2 border-red-400 rounded-xl p-5 hover:bg-red-500/25 active:scale-95 transition-all"
           >
-            <p className="font-black text-lg text-red-300 mb-1">🔴 Red Team</p>
+            <p className="font-black text-lg text-red-300 mb-1">🔴 {redTeamLabel}</p>
             <p className="text-xs text-gray-400">Second Pick</p>
           </button>
         </div>
@@ -633,7 +712,7 @@ export default function DraftClient({
         {/* LEFT PANEL - Blue Team Picks */}
         <div className="flex-shrink-0 w-full lg:w-24 xl:w-28 order-1 lg:order-1">
           <div className="grid grid-cols-5 gap-1.5 md:gap-2 lg:block lg:space-y-1.5 xl:space-y-2 lg:sticky lg:top-20">
-            <p className="col-span-5 text-[9px] md:text-[10px] font-black text-blue-400 text-left lg:text-center mb-0.5 lg:mb-1.5">BLUE TEAM</p>
+            <p className="col-span-5 text-[9px] md:text-[10px] font-black text-blue-400 text-left lg:text-center mb-0.5 lg:mb-1.5 uppercase">{blueTeamLabel}</p>
             {bluePicks.map((h, i) => (
               <div
                 key={i}
@@ -692,7 +771,7 @@ export default function DraftClient({
                       {phase === 'ban' ? '🚫 BAN PHASE' : '👤 PICK PHASE'}
                     </p>
                     <p className={`text-xs md:text-sm font-black ${currentTurn === 'blue' ? 'text-blue-300' : 'text-red-300'}`}>
-                      TURN: {currentTurn === 'blue' ? 'BLUE' : 'RED'} TEAM
+                      TURN: {currentTurn === 'blue' ? blueTeamLabel : redTeamLabel}
                     </p>
                     <p className="mt-1 text-[9px] md:text-[10px] text-gray-500">
                       {phase === 'ban'
@@ -754,7 +833,7 @@ export default function DraftClient({
           {/* Mobile RED TEAM panel (directly below bans/status) */}
           <div className="lg:hidden mb-3">
             <div className="grid grid-cols-5 gap-1.5">
-              <p className="col-span-5 text-[9px] font-black text-red-400 text-left mb-0.5">RED TEAM</p>
+              <p className="col-span-5 text-[9px] font-black text-red-400 text-left mb-0.5 uppercase">{redTeamLabel}</p>
               {redPicks.map((h, i) => (
                 <div
                   key={i}
@@ -866,19 +945,22 @@ export default function DraftClient({
           ) : (
             <div className="flex-1 bg-[#13151f] border border-green-500/20 rounded-lg p-4 md:p-8 flex flex-col items-center justify-center">
               <p className="text-4xl md:text-5xl mb-3 md:mb-4">🏆</p>
-              <h2 className="text-xl md:text-2xl font-black mb-4 md:mb-6">DRAFT COMPLETE!</h2>
+              <h2 className="text-xl md:text-2xl font-black mb-2">DRAFT COMPLETE!</h2>
+              <p className="text-xs md:text-sm text-gray-400 mb-4 md:mb-6 uppercase tracking-wide">
+                {blueTeamLabel} vs {redTeamLabel}
+              </p>
               {winProb && (
                 <div className="text-center mb-6 w-full max-w-3xl">
                   <p className="text-gray-400 text-xs md:text-sm mb-3">Estimated Win Probability</p>
                   <div className="flex justify-center gap-6 md:gap-12 mb-4">
                     <div>
                       <p className="text-3xl md:text-4xl font-black text-blue-400">{winProb.blue.toFixed(0)}%</p>
-                      <p className="text-[10px] md:text-xs text-gray-500 mt-1">BLUE TEAM</p>
+                      <p className="text-[10px] md:text-xs text-gray-500 mt-1 uppercase">{blueTeamLabel}</p>
                     </div>
                     <div className="text-gray-600 self-center font-bold text-lg">vs</div>
                     <div>
                       <p className="text-3xl md:text-4xl font-black text-red-400">{winProb.red.toFixed(0)}%</p>
-                      <p className="text-[10px] md:text-xs text-gray-500 mt-1">RED TEAM</p>
+                      <p className="text-[10px] md:text-xs text-gray-500 mt-1 uppercase">{redTeamLabel}</p>
                     </div>
                   </div>
                   <div className="flex rounded-full overflow-hidden h-2 md:h-3 max-w-xs mx-auto">
@@ -888,11 +970,11 @@ export default function DraftClient({
 
                   <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:text-sm">
                     <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-left">
-                      <p className="text-[10px] uppercase tracking-wider text-blue-200/80">Blue Team Avg WR</p>
+                      <p className="text-[10px] uppercase tracking-wider text-blue-200/80">{blueTeamLabel} Avg WR</p>
                       <p className="text-xl font-black text-blue-300 mt-1">{(bluePickStats.avg * 100).toFixed(1)}%</p>
                     </div>
                     <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-left">
-                      <p className="text-[10px] uppercase tracking-wider text-red-200/80">Red Team Avg WR</p>
+                      <p className="text-[10px] uppercase tracking-wider text-red-200/80">{redTeamLabel} Avg WR</p>
                       <p className="text-xl font-black text-red-300 mt-1">{(redPickStats.avg * 100).toFixed(1)}%</p>
                     </div>
                   </div>
@@ -964,7 +1046,7 @@ export default function DraftClient({
         {/* RIGHT PANEL - Red Team Picks */}
         <div className="hidden lg:block flex-shrink-0 w-full lg:w-24 xl:w-28 order-3 lg:order-3">
           <div className="grid grid-cols-5 gap-1.5 md:gap-2 lg:block lg:space-y-1.5 xl:space-y-2 lg:sticky lg:top-20">
-            <p className="col-span-5 text-[9px] md:text-[10px] font-black text-red-400 text-left lg:text-center mb-0.5 lg:mb-1.5">RED TEAM</p>
+            <p className="col-span-5 text-[9px] md:text-[10px] font-black text-red-400 text-left lg:text-center mb-0.5 lg:mb-1.5 uppercase">{redTeamLabel}</p>
             {redPicks.map((h, i) => (
               <div
                 key={i}
@@ -1027,7 +1109,7 @@ export default function DraftClient({
                     phase === 'ban' ? 'text-red-400' : currentTurn === 'blue' ? 'text-blue-400' : 'text-red-400'
                   }`}
                 >
-                  {phase === 'ban' ? '🚫 BAN by' : '✅ PICK by'} {currentTurn.toUpperCase()} TEAM
+                  {phase === 'ban' ? '🚫 BAN by' : '✅ PICK by'} {currentTurn === 'blue' ? blueTeamLabel : redTeamLabel}
                 </p>
               </div>
               <button
@@ -1093,7 +1175,7 @@ export default function DraftClient({
                     <span className="text-red-400 font-bold">Red {projectedWinProb.red.toFixed(0)}%</span>
                   </p>
                   <p className="text-[11px] text-gray-500 mt-1">
-                    Predicted advantage: {projectedWinProb.blue >= projectedWinProb.red ? 'Blue Team' : 'Red Team'}
+                    Predicted advantage: {projectedWinProb.blue >= projectedWinProb.red ? blueTeamLabel : redTeamLabel}
                   </p>
                 </div>
               )}

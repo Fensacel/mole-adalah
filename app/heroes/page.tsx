@@ -1,6 +1,7 @@
 import { getAllHeroes, getHeroDetail, getHeroPosition } from "@/lib/api";
 import HeroesClient from "./HeroesClient";
 export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
 const ROLE_FALLBACK_CONCURRENCY = 10;
 const ROLE_FALLBACK_RETRIES = 2;
@@ -8,7 +9,7 @@ const ROLE_FALLBACK_RETRIES = 2;
 async function fetchHeroDetailWithRetry(name: string) {
   let attempt = 0;
   while (attempt <= ROLE_FALLBACK_RETRIES) {
-    const detail = await getHeroDetail(name);
+    const detail = await getHeroDetail(name, { noCache: true });
     if (detail?.role?.length) return detail;
     attempt += 1;
     if (attempt <= ROLE_FALLBACK_RETRIES) {

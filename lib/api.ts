@@ -77,10 +77,27 @@ export interface HeroRelationData {
   weak: HeroListItem[];
 }
 
-async function fetchAPI<T>(endpoint: string): Promise<T | null> {
+interface FetchApiOptions {
+  cache?: RequestCache;
+  revalidate?: number | false;
+}
+
+async function fetchAPI<T>(endpoint: string, options?: FetchApiOptions): Promise<T | null> {
   try {
+    const init: RequestInit & { next?: { revalidate: number } } = {};
+
+    if (options?.cache) {
+      init.cache = options.cache;
+    }
+
+    if (typeof options?.revalidate === "number") {
+      init.next = { revalidate: options.revalidate };
+    } else if (options?.revalidate !== false) {
+      init.next = { revalidate: 3600 };
+    }
+
     const res = await fetch(`${BASE_URL}${endpoint}`, {
-      next: { revalidate: 3600 },
+      ...init,
     });
     if (!res.ok) return null;
     return res.json();
@@ -102,12 +119,12 @@ function getHeroParamVariants(name: string): string[] {
   return [...new Set([raw, compact, hyphen].filter((value) => value.length > 0))];
 }
 
-async function fetchHeroAPI<T>(baseEndpoint: string, name: string): Promise<T | null> {
+async function fetchHeroAPI<T>(baseEndpoint: string, name: string, options?: FetchApiOptions): Promise<T | null> {
   const variants = getHeroParamVariants(name);
   if (!variants.length) return null;
 
   for (const variant of variants) {
-    const data = await fetchAPI<T>(`${baseEndpoint}/${encodeURIComponent(variant)}/`);
+    const data = await fetchAPI<T>(`${baseEndpoint}/${encodeURIComponent(variant)}/`, options);
     if (data) return data;
   }
 
@@ -258,7 +275,11 @@ export async function getHeroCompatibility(name: string): Promise<HeroCompatibil
   };
 }
 
-export async function getHeroDetail(name: string): Promise<HeroDetail | null> {
+export async function getHeroDetail(name: string, options?: { noCache?: boolean }): Promise<HeroDetail | null> {
+  const fetchOptions = options?.noCache
+    ? ({ cache: "no-store", revalidate: false } as const)
+    : undefined;
+
   const data = await fetchHeroAPI<{
     data: {
       records: Array<{
@@ -279,7 +300,7 @@ export async function getHeroDetail(name: string): Promise<HeroDetail | null> {
         };
       }>;
     };
-  }>("/hero-detail", name);
+  }>("/hero-detail", name, fetchOptions);
 
   if (!data || !data.data.records.length) return null;
   const rec = data.data.records[0].data;

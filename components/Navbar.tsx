@@ -1,22 +1,28 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { Swords, ChevronDown } from "lucide-react";
+import { Menu } from "lucide-react";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 bg-[#0d0f17]/95 backdrop-blur-sm border-b border-white/5">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
+      <div className="max-w-7xl mx-auto px-4 h-[72px] flex items-center gap-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 mr-4 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
-            <Swords className="w-4 h-4 text-white" />
-          </div>
+        <Link href="/" className="flex items-center gap-2.5 mr-4 shrink-0">
+          <Image
+            src="/logo.webp"
+            alt="Draft Whisperer"
+            width={72}
+            height={72}
+            className="h-14 w-14 md:h-16 md:w-16 object-contain shrink-0"
+            priority
+          />
           <span className="font-bold text-lg tracking-tight hidden sm:block">
-            Draft<span className="text-blue-400">Whisperer</span>
+            Draft <span className="text-blue-400">Whisperer</span>
           </span>
         </Link>
 
@@ -43,8 +49,9 @@ export default function Navbar() {
         <button
           className="md:hidden p-2 text-gray-400 hover:text-white ml-auto"
           onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Toggle navigation menu"
         >
-          <ChevronDown className={`w-5 h-5 transition-transform ${menuOpen ? "rotate-180" : ""}`} />
+          <Menu className="w-5 h-5" />
         </button>
       </div>
 

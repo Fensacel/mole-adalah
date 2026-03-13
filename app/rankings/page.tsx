@@ -2,8 +2,8 @@
 import RankingsClient from './RankingsClient';
 
 export const metadata = {
-  title: 'Rankings - DraftWhisperer',
-  description: 'Ranking hero Mobile Legends.',
+  title: 'Rankings - Draft Whisperer',
+  description: 'Mobile Legends hero rankings.',
 };
 
 export default async function RankingsPage() {

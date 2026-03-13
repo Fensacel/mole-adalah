@@ -29,9 +29,9 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
 
   function WrIndicator({ wr }: { wr: number }) {
     const pct = (wr * 100).toFixed(1);
-    if (wr >= 0.54) return <span className="flex items-center justify-end gap-1 text-green-400 font-bold"><TrendingUp className="w-3 h-3" />{pct}%</span>;
-    if (wr <= 0.46) return <span className="flex items-center justify-end gap-1 text-red-400 font-bold"><TrendingDown className="w-3 h-3" />{pct}%</span>;
-    return <span className="flex items-center justify-end gap-1 text-yellow-400 font-bold"><Minus className="w-3 h-3" />{pct}%</span>;
+    if (wr >= 0.54) return <span className="flex items-center justify-end gap-0.5 sm:gap-1 text-green-400 font-bold text-xs sm:text-sm"><TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />{pct}%</span>;
+    if (wr <= 0.46) return <span className="flex items-center justify-end gap-0.5 sm:gap-1 text-red-400 font-bold text-xs sm:text-sm"><TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />{pct}%</span>;
+    return <span className="flex items-center justify-end gap-0.5 sm:gap-1 text-yellow-400 font-bold text-xs sm:text-sm"><Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />{pct}%</span>;
   }
 
   const toggleSort = (column: SortBy) => {
@@ -51,7 +51,7 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
             <Trophy className="w-7 h-7 text-yellow-400" />
             <h1 className="text-3xl font-black">Hero Rankings</h1>
           </div>
-          <p className="text-gray-400">Ranking semua hero berdasarkan statistik terkini. Total {initialRanks.length} hero.</p>
+          <p className="text-gray-400">Rank all heroes by the latest stats. Total {initialRanks.length} heroes.</p>
         </div>
 
         {/* Sort Controls */}
@@ -82,9 +82,9 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
         </div>
 
         <div className="rounded-2xl overflow-hidden border border-white/5 bg-[#13151f]">
-          <div className="overflow-x-auto">
+          <div>
           {/* Header */}
-          <div className="grid grid-cols-[40px_160px_95px_95px_95px] sm:grid-cols-[48px_1fr_130px_130px_130px] gap-2 px-3 sm:px-4 py-3 border-b border-white/5 text-[11px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider bg-white/[0.02] min-w-[485px] sm:min-w-0">
+          <div className="grid grid-cols-[28px_minmax(84px,1fr)_62px_62px_62px] sm:grid-cols-[48px_1fr_130px_130px_130px] gap-2 px-3 sm:px-4 py-3 border-b border-white/5 text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider bg-white/[0.02]">
             <span className="text-center">#</span>
             <span>Hero</span>
             <span className="text-right cursor-pointer hover:text-white transition-colors" onClick={() => toggleSort('win_rate')}>
@@ -108,20 +108,20 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
               <Link
                 key={hero.hero_id}
                 href={`/heroes/${encodeURIComponent(hero.name)}`}
-                className={`grid grid-cols-[40px_160px_95px_95px_95px] sm:grid-cols-[48px_1fr_130px_130px_130px] gap-2 px-3 sm:px-4 py-3 items-center hover:bg-white/5 transition-colors min-w-[485px] sm:min-w-0 ${rowBg}`}
+                className={`grid grid-cols-[28px_minmax(84px,1fr)_62px_62px_62px] sm:grid-cols-[48px_1fr_130px_130px_130px] gap-2 px-3 sm:px-4 py-3 items-center hover:bg-white/5 transition-colors ${rowBg}`}
               >
                 <span className={`text-center text-sm font-black ${rankColor}`}>{rankLabel}</span>
 
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-[#0a0c14]">
+                  <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-lg overflow-hidden shrink-0 bg-[#0a0c14]">
                     <Image src={hero.head} alt={hero.name} fill className="object-cover" unoptimized sizes="32px" />
                   </div>
-                  <span className="text-sm text-white font-semibold truncate">{hero.name}</span>
+                  <span className="text-xs sm:text-sm text-white font-semibold truncate">{hero.name}</span>
                 </div>
 
-                <div className="text-right text-sm"><WrIndicator wr={hero.win_rate} /></div>
-                <div className="text-right text-sm font-bold text-purple-400">{(hero.ban_rate * 100).toFixed(1)}%</div>
-                <div className="text-right text-sm font-bold text-blue-400">{(hero.use_rate * 100).toFixed(1)}%</div>
+                <div className="text-right"><WrIndicator wr={hero.win_rate} /></div>
+                <div className="text-right text-xs sm:text-sm font-bold text-purple-400">{(hero.ban_rate * 100).toFixed(1)}%</div>
+                <div className="text-right text-xs sm:text-sm font-bold text-blue-400">{(hero.use_rate * 100).toFixed(1)}%</div>
               </Link>
             );
           })}
@@ -129,7 +129,7 @@ export default function RankingsClient({ initialRanks }: { initialRanks: RankHer
         </div>
 
         <p className="text-center text-xs text-gray-600 mt-6">
-          {initialRanks.length} hero · Sort: {sortBy === 'win_rate' ? 'Win Rate' : sortBy === 'ban_rate' ? 'Ban Rate' : 'Use Rate'} ({sortOrder === 'desc' ? 'Tertinggi ke Terendah' : 'Terendah ke Tertinggi'})
+          {initialRanks.length} heroes · Sort: {sortBy === 'win_rate' ? 'Win Rate' : sortBy === 'ban_rate' ? 'Ban Rate' : 'Use Rate'} ({sortOrder === 'desc' ? 'High to Low' : 'Low to High'})
         </p>
       </div>
     </div>

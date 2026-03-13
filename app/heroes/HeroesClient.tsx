@@ -45,8 +45,8 @@ export default function HeroesClient({
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
       <div className="mb-6">
-        <h1 className="text-3xl font-black mb-1">Hero Mobile Legends</h1>
-        <p className="text-gray-400 text-sm">{filteredHeroes.length} hero ditemukan</p>
+        <h1 className="text-3xl font-black mb-1">Mobile Legends Heroes</h1>
+        <p className="text-gray-400 text-sm">{filteredHeroes.length} heroes found</p>
       </div>
 
       <div className="mb-4">
@@ -54,7 +54,7 @@ export default function HeroesClient({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari hero, misalnya: Ling"
+          placeholder="Search heroes, e.g. Ling"
           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-blue-500/60 focus:bg-white/8 transition-all"
         />
       </div>
@@ -73,7 +73,7 @@ export default function HeroesClient({
                   : "border-white/10 bg-white/5 text-gray-300 hover:border-blue-500/40"
               }`}
             >
-              {role === "all" ? "Semua Role" : role}
+              {role === "all" ? "All Roles" : role}
             </button>
           );
         })}
@@ -106,8 +106,8 @@ export default function HeroesClient({
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-6xl mb-4">🔍</p>
-          <p className="text-xl font-bold mb-2">Hero tidak ditemukan</p>
-          <p className="text-gray-500 text-sm">Coba kata kunci atau role lain.</p>
+          <p className="text-xl font-bold mb-2">No heroes found</p>
+          <p className="text-gray-500 text-sm">Try a different keyword or role.</p>
         </div>
       )}
     </div>

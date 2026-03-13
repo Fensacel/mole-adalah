@@ -4,8 +4,8 @@ import ItemsClient from "./ItemsClient";
 export const runtime = 'edge';
 
 export const metadata = {
-  title: "Item MLBB - DraftWhisperer",
-  description: "Daftar item Mobile Legends lengkap beserta gambar item.",
+  title: "MLBB Items - Draft Whisperer",
+  description: "Complete Mobile Legends item list with item images.",
 };
 
 interface Props {

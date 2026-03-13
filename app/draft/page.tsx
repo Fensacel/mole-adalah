@@ -2,7 +2,7 @@
 import DraftClient from './DraftClient';
 
 export const metadata = {
-  title: 'Simulasi Draft - DraftWhisperer',
+  title: 'Draft Simulator - Draft Whisperer',
   description: '',
 };
 

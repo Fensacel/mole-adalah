@@ -42,12 +42,12 @@ export default function ItemsClient({
     <div className="max-w-7xl mx-auto px-4 py-10">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-black mb-1">Item Mobile Legends</h1>
-          <p className="text-sm text-gray-400">{sortedItems.length} item ditemukan</p>
+          <h1 className="text-3xl font-black mb-1">Mobile Legends Items</h1>
+          <p className="text-sm text-gray-400">{sortedItems.length} items found</p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Urutkan</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Sort</span>
           <div className="flex rounded-lg border border-white/10 bg-white/5 p-1">
             <button
               type="button"
@@ -76,7 +76,7 @@ export default function ItemsClient({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari item, misalnya: Dominance Ice"
+          placeholder="Search items, e.g. Dominance Ice"
           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-blue-500/60 transition-all"
         />
       </div>
@@ -100,7 +100,7 @@ export default function ItemsClient({
                 active ? colorMap[cat] : "border-white/10 bg-white/5 text-gray-300 hover:border-white/30"
               }`}
             >
-              {cat === "all" ? "Semua" : cat}
+              {cat === "all" ? "All" : cat}
             </button>
           );
         })}

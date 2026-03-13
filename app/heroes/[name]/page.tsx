@@ -23,8 +23,8 @@ export async function generateMetadata({ params }: Props) {
   const { name } = await params;
   const heroName = decodeURIComponent(name);
   return {
-    title: `${heroName} — DraftWhisperer`,
-    description: `Statistik, counter, dan synergy untuk hero ${heroName} di Mobile Legends.`,
+    title: `${heroName} — Draft Whisperer`,
+    description: `Stats, counters, and synergies for ${heroName} in Mobile Legends.`,
   };
 }
 
@@ -54,7 +54,7 @@ export default async function HeroDetailPage({ params }: Props) {
         className="mb-6 inline-flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-blue-300"
       >
         <ArrowLeft className="h-4 w-4" />
-        Kembali ke Daftar Hero
+        Back to Hero List
       </Link>
 
       <section className="relative mb-8 overflow-hidden rounded-3xl border border-blue-500/20 bg-[#070b14]">
@@ -103,19 +103,19 @@ export default async function HeroDetailPage({ params }: Props) {
           label="Win Rate"
           value={winRate > 0 ? `${(winRate * 100).toFixed(1)}%` : "—"}
           color="green"
-          description={winRate >= 0.54 ? "Di atas rata-rata" : winRate <= 0.46 ? "Di bawah rata-rata" : "Rata-rata"}
+          description={winRate >= 0.54 ? "Above average" : winRate <= 0.46 ? "Below average" : "Average"}
         />
         <StatCard
           label="Ban Rate"
           value={banRate > 0 ? `${(banRate * 100).toFixed(1)}%` : "—"}
           color="purple"
-          description={banRate > 0.2 ? "Sering di-ban" : "Jarang di-ban"}
+          description={banRate > 0.2 ? "Frequently banned" : "Rarely banned"}
         />
         <StatCard
           label="Use Rate"
           value={useRate > 0 ? `${(useRate * 100).toFixed(1)}%` : "—"}
           color="blue"
-          description={useRate > 0.05 ? "Banyak dimainkan" : "Jarang dimainkan"}
+          description={useRate > 0.05 ? "Frequently played" : "Rarely played"}
         />
       </div>
 
@@ -177,7 +177,7 @@ export default async function HeroDetailPage({ params }: Props) {
                       <p className="truncate text-sm text-gray-100">{hero.name}</p>
                     </Link>
                   ))}
-                  {group.heroes.length === 0 && <p className="text-xs text-gray-300/70">Tidak ada data.</p>}
+                  {group.heroes.length === 0 && <p className="text-xs text-gray-300/70">No data.</p>}
                 </div>
               </div>
             ))}
@@ -193,16 +193,16 @@ export default async function HeroDetailPage({ params }: Props) {
               <h2 className="text-lg font-bold">Counter Hero</h2>
             </div>
             <HeroRelationTable
-              title="Hero yang diuntungkan melawan ini"
-              subtitle="Hero yang memiliki win rate lebih tinggi saat melawan hero ini"
+              title="Heroes favored against this hero"
+              subtitle="Heroes with higher win rates when facing this hero"
               heroes={counter.counters}
               type="counter"
               mainWinRate={winRate}
             />
             {counter.worst_matchups.length > 0 && (
               <HeroRelationTable
-                title="Hero yang lemah melawan ini"
-                subtitle="Hero yang kalah saat dihadapkan dengan hero ini"
+                title="Heroes weak against this hero"
+                subtitle="Heroes that tend to lose when facing this hero"
                 heroes={counter.worst_matchups}
                 type="counter"
                 mainWinRate={winRate}
@@ -218,16 +218,16 @@ export default async function HeroDetailPage({ params }: Props) {
               <h2 className="text-lg font-bold">Synergy Hero</h2>
             </div>
             <HeroRelationTable
-              title="Hero yang cocok bersama ini"
-              subtitle="Hero yang meningkatkan win rate saat bermain bersama hero ini"
+              title="Heroes that pair well with this hero"
+              subtitle="Heroes that increase win rate when played together"
               heroes={compatibility.best_synergies}
               type="synergy"
               mainWinRate={winRate}
             />
             {compatibility.worst_synergies.length > 0 && (
               <HeroRelationTable
-                title="Hero yang kurang cocok bersama ini"
-                subtitle="Hero yang menurunkan win rate saat bermain bersama"
+                title="Heroes with poor synergy"
+                subtitle="Heroes that lower win rate when played together"
                 heroes={compatibility.worst_synergies}
                 type="counter"
                 mainWinRate={winRate}
@@ -240,8 +240,8 @@ export default async function HeroDetailPage({ params }: Props) {
       {!counter && !compatibility && (
         <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-6 text-center">
           <Target className="mx-auto mb-3 h-8 w-8 text-yellow-400" />
-          <p className="mb-1 font-bold text-yellow-300">Data statistik tidak tersedia</p>
-          <p className="text-sm text-gray-400">API tidak mengembalikan data counter/compatibility untuk hero ini.</p>
+          <p className="mb-1 font-bold text-yellow-300">Stats data unavailable</p>
+          <p className="text-sm text-gray-400">The API did not return counter/compatibility data for this hero.</p>
         </div>
       )}
     </div>

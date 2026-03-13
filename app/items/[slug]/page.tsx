@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getItemBySlug } from "@/lib/items";
+import { ArrowLeft } from "lucide-react";
 
 export const runtime = 'edge';
 
@@ -22,9 +23,13 @@ export default async function ItemDetailPage({ params }: Props) {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="mb-6">
-        <Link href="/items" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
-          Kembali ke daftar item
-        </Link>
+        <Link
+        href="/items"
+        className="mb-6 inline-flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-blue-300"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Item List
+      </Link>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-[#13151f] overflow-hidden">
@@ -40,11 +45,11 @@ export default async function ItemDetailPage({ params }: Props) {
         </div>
 
         <div className="p-5 sm:p-8">
-          <h2 className="text-2xl font-bold mb-4">Karakteristik Item</h2>
+          <h2 className="text-2xl font-bold mb-4">Item Stats</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <p className="text-2xl font-semibold text-gray-400 mb-2">Harga</p>
+              <p className="text-2xl font-semibold text-gray-400 mb-2">Price</p>
               <p className="text-4xl font-black text-blue-400">{price} gold</p>
             </div>
 
@@ -62,11 +67,11 @@ export default async function ItemDetailPage({ params }: Props) {
             </div>
 
             <div>
-              <p className="text-2xl font-semibold text-gray-400 mb-2">Pasif</p>
+              <p className="text-2xl font-semibold text-gray-400 mb-2">Passive</p>
               <div className="space-y-2 text-xl text-gray-300 leading-relaxed">
                 {passiveLines.length > 0 ? (
                   passiveLines.map((line, index) => (
-                    <p key={`${item.slug}-passive-${index}`}>{line.replace(/^Pasif:\s*/i, "")}</p>
+                    <p key={`${item.slug}-passive-${index}`}>{line.replace(/^Pasif:\s*/i, "").replace(/^Passive:\s*/i, "")}</p>
                   ))
                 ) : (
                   <p>-</p>

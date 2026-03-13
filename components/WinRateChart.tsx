@@ -69,7 +69,7 @@ export default function WinRateChart({ mainHero, counterHeroes }: WinRateChartPr
         </BarChart>
       </ResponsiveContainer>
       <p className="text-[10px] text-gray-600 mt-2 text-center">
-        Garis putus-putus = 50% (rata-rata). Orange = hero yang dicari, Hijau = WR ≥50%, Merah = WR &lt;50%
+        Dashed line = 50% (average). Orange = selected hero, Green = WR ≥50%, Red = WR &lt;50%
       </p>
     </div>
   );

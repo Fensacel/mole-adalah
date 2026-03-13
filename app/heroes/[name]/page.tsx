@@ -4,6 +4,7 @@ import Image from "next/image";
 export const runtime = 'edge';
 import Link from "next/link";
 import {
+  getAllHeroes,
   getHeroDetail,
   getHeroRate,
   getHeroCounter,
@@ -19,9 +20,26 @@ interface Props {
   params: Promise<{ name: string }>;
 }
 
+function normalizeHeroSlug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+async function resolveHeroName(paramName: string) {
+  const decoded = decodeURIComponent(paramName);
+  const heroes = await getAllHeroes();
+  if (!heroes.length) return decoded;
+
+  const exactMatch = heroes.find((hero) => hero.name.toLowerCase() === decoded.toLowerCase());
+  if (exactMatch) return exactMatch.name;
+
+  const normalized = normalizeHeroSlug(decoded);
+  const slugMatch = heroes.find((hero) => normalizeHeroSlug(hero.name) === normalized);
+  return slugMatch?.name ?? decoded;
+}
+
 export async function generateMetadata({ params }: Props) {
   const { name } = await params;
-  const heroName = decodeURIComponent(name);
+  const heroName = await resolveHeroName(name);
   return {
     title: `${heroName} — Draft Whisperer`,
     description: `Stats, counters, and synergies for ${heroName} in Mobile Legends.`,
@@ -30,7 +48,7 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function HeroDetailPage({ params }: Props) {
   const { name } = await params;
-  const heroName = decodeURIComponent(name);
+  const heroName = await resolveHeroName(name);
 
   const [detail, rate, counter, compatibility, skillCombos, relation] = await Promise.all([
     getHeroDetail(heroName),

@@ -89,6 +89,31 @@ async function fetchAPI<T>(endpoint: string): Promise<T | null> {
   }
 }
 
+function getHeroParamVariants(name: string): string[] {
+  const raw = name.trim();
+  if (!raw) return [];
+
+  const compact = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const hyphen = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return [...new Set([raw, compact, hyphen].filter((value) => value.length > 0))];
+}
+
+async function fetchHeroAPI<T>(baseEndpoint: string, name: string): Promise<T | null> {
+  const variants = getHeroParamVariants(name);
+  if (!variants.length) return null;
+
+  for (const variant of variants) {
+    const data = await fetchAPI<T>(`${baseEndpoint}/${encodeURIComponent(variant)}/`);
+    if (data) return data;
+  }
+
+  return null;
+}
+
 export async function getAllHeroes(): Promise<HeroListItem[]> {
   const data = await fetchAPI<{ data: { records: Array<{ data: { hero: { data: { name: string; head: string } }; hero_id: number } }> } }>("/hero-list/");
   if (!data) return [];
@@ -102,7 +127,7 @@ export async function getAllHeroes(): Promise<HeroListItem[]> {
 }
 
 export async function getHeroRate(name: string): Promise<HeroRate | null> {
-  const data = await fetchAPI<{
+  const data = await fetchHeroAPI<{
     data: {
       records: Array<{
         data: {
@@ -110,7 +135,7 @@ export async function getHeroRate(name: string): Promise<HeroRate | null> {
         };
       }>;
     };
-  }>(`/hero-rate/${encodeURIComponent(name)}/`);
+  }>("/hero-rate", name);
   if (!data || !data.data.records.length) return null;
   const latest = data.data.records[0].data.win_rate;
   if (!latest || !latest.length) return null;
@@ -121,7 +146,7 @@ export async function getHeroRate(name: string): Promise<HeroRate | null> {
 }
 
 export async function getHeroCounter(name: string): Promise<HeroCounterData | null> {
-  const data = await fetchAPI<{
+  const data = await fetchHeroAPI<{
     data: {
       records: Array<{
         data: {
@@ -147,7 +172,7 @@ export async function getHeroCounter(name: string): Promise<HeroCounterData | nu
         };
       }>;
     };
-  }>(`/hero-counter/${encodeURIComponent(name)}/`);
+  }>("/hero-counter", name);
 
   if (!data || !data.data.records.length) return null;
   const rec = data.data.records[0].data;
@@ -178,7 +203,7 @@ export async function getHeroCounter(name: string): Promise<HeroCounterData | nu
 }
 
 export async function getHeroCompatibility(name: string): Promise<HeroCompatibilityData | null> {
-  const data = await fetchAPI<{
+  const data = await fetchHeroAPI<{
     data: {
       records: Array<{
         data: {
@@ -204,7 +229,7 @@ export async function getHeroCompatibility(name: string): Promise<HeroCompatibil
         };
       }>;
     };
-  }>(`/hero-compatibility/${encodeURIComponent(name)}/`);
+  }>("/hero-compatibility", name);
 
   if (!data || !data.data.records.length) return null;
   const rec = data.data.records[0].data;
@@ -234,7 +259,7 @@ export async function getHeroCompatibility(name: string): Promise<HeroCompatibil
 }
 
 export async function getHeroDetail(name: string): Promise<HeroDetail | null> {
-  const data = await fetchAPI<{
+  const data = await fetchHeroAPI<{
     data: {
       records: Array<{
         data: {
@@ -254,7 +279,7 @@ export async function getHeroDetail(name: string): Promise<HeroDetail | null> {
         };
       }>;
     };
-  }>(`/hero-detail/${encodeURIComponent(name)}/`);
+  }>("/hero-detail", name);
 
   if (!data || !data.data.records.length) return null;
   const rec = data.data.records[0].data;
@@ -412,7 +437,7 @@ function normalizeHeroIdList(input: unknown): number[] {
 }
 
 export async function getHeroSkillCombo(name: string): Promise<HeroSkillCombo[]> {
-  const data = await fetchAPI<{
+  const data = await fetchHeroAPI<{
     data?: {
       records?: Array<{
         data?: {
@@ -427,7 +452,7 @@ export async function getHeroSkillCombo(name: string): Promise<HeroSkillCombo[]>
         };
       }>;
     };
-  }>(`/hero-skill-combo/${encodeURIComponent(name)}/`);
+  }>("/hero-skill-combo", name);
 
   const records = data?.data?.records ?? [];
   return records
@@ -452,7 +477,7 @@ export async function getHeroSkillCombo(name: string): Promise<HeroSkillCombo[]>
 }
 
 export async function getHeroRelation(name: string): Promise<HeroRelationData | null> {
-  const data = await fetchAPI<{
+  const data = await fetchHeroAPI<{
     data?: {
       records?: Array<{
         data?: {
@@ -464,7 +489,7 @@ export async function getHeroRelation(name: string): Promise<HeroRelationData | 
         };
       }>;
     };
-  }>(`/hero-relation/${encodeURIComponent(name)}/`);
+  }>("/hero-relation", name);
 
   const relation = data?.data?.records?.[0]?.data?.relation;
   if (!relation) return null;
@@ -530,7 +555,7 @@ function normalizeHeroStats(raw: unknown): HeroDetailStat[] {
 }
 
 export async function getHeroDetailStats(name: string): Promise<HeroDetailStat[]> {
-  const data = await fetchAPI<unknown>(`/hero-detail-stats/${encodeURIComponent(name)}/`);
+  const data = await fetchHeroAPI<unknown>("/hero-detail-stats", name);
   if (!data) return [];
   return normalizeHeroStats(data);
 }

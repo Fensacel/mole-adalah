@@ -197,7 +197,6 @@ export default async function HeroDetailPage({ params }: Props) {
               subtitle="Heroes with higher win rates when facing this hero"
               heroes={counter.counters}
               type="counter"
-              mainWinRate={winRate}
             />
             {counter.worst_matchups.length > 0 && (
               <HeroRelationTable
@@ -205,7 +204,6 @@ export default async function HeroDetailPage({ params }: Props) {
                 subtitle="Heroes that tend to lose when facing this hero"
                 heroes={counter.worst_matchups}
                 type="counter"
-                mainWinRate={winRate}
               />
             )}
           </div>
@@ -222,7 +220,6 @@ export default async function HeroDetailPage({ params }: Props) {
               subtitle="Heroes that increase win rate when played together"
               heroes={compatibility.best_synergies}
               type="synergy"
-              mainWinRate={winRate}
             />
             {compatibility.worst_synergies.length > 0 && (
               <HeroRelationTable
@@ -230,7 +227,6 @@ export default async function HeroDetailPage({ params }: Props) {
                 subtitle="Heroes that lower win rate when played together"
                 heroes={compatibility.worst_synergies}
                 type="counter"
-                mainWinRate={winRate}
               />
             )}
           </div>

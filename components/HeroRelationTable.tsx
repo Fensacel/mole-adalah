@@ -8,7 +8,6 @@ interface HeroRelationTableProps {
   subtitle?: string;
   heroes: SubHero[];
   type: "counter" | "synergy";
-  mainWinRate: number;
 }
 
 export default function HeroRelationTable({
@@ -16,7 +15,6 @@ export default function HeroRelationTable({
   subtitle,
   heroes,
   type,
-  mainWinRate,
 }: HeroRelationTableProps) {
   const accentColor = type === "counter" ? "text-red-400" : "text-green-400";
   const borderColor = type === "counter" ? "border-red-500/20" : "border-green-500/20";

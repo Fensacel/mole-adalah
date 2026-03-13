@@ -41,7 +41,7 @@ export default function Navbar() {
             Rankings
           </Link>
           <Link href="/draft" className="px-3 py-1.5 rounded-md hover:text-white hover:bg-white/5 transition-colors">
-            Draft
+            Draft Simulator
           </Link>
         </nav>
 

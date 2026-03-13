@@ -1,4 +1,5 @@
 import { getAllHeroes, getHeroDetail, getHeroPosition, getHeroRank } from '@/lib/api';
+import roleMapSeed from '@/data/roleMapSeed.json';
 import DraftClient from '../draft/DraftClient';
 
 export const metadata = {
@@ -8,7 +9,9 @@ export const metadata = {
 
 export default async function DraftSimulatorPage() {
   const [heroes, ranks, positions] = await Promise.all([getAllHeroes(), getHeroRank(), getHeroPosition()]);
-  const roleMap: Record<number, string[]> = {};
+  const roleMap: Record<number, string[]> = Object.fromEntries(
+    Object.entries(roleMapSeed).map(([heroId, roles]) => [Number(heroId), Array.from(new Set(roles))]),
+  );
   for (const position of positions) {
     if (!position.roles.length) continue;
     roleMap[position.hero_id] = Array.from(new Set([...(roleMap[position.hero_id] ?? []), ...position.roles]));

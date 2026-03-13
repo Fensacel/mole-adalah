@@ -1,4 +1,5 @@
 import { getAllHeroes, getHeroDetail, getHeroPosition } from "@/lib/api";
+import roleMapSeed from "@/data/roleMapSeed.json";
 import HeroesClient from "./HeroesClient";
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
@@ -46,7 +47,9 @@ interface Props {
 export default async function HeroesPage({ searchParams }: Props) {
   const params = await searchParams;
   const [heroes, positions] = await Promise.all([getAllHeroes(), getHeroPosition()]);
-  const roleMap: Record<number, string[]> = {};
+  const roleMap: Record<number, string[]> = Object.fromEntries(
+    Object.entries(roleMapSeed).map(([heroId, roles]) => [Number(heroId), Array.from(new Set(roles))]),
+  );
   for (const p of positions) {
     if (p.roles.length > 0) {
       roleMap[p.hero_id] = Array.from(new Set([...(roleMap[p.hero_id] ?? []), ...p.roles]));

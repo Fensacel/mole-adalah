@@ -7,6 +7,7 @@ import { RotateCcw, SkipBack, X } from 'lucide-react';
 
 type Team = 'blue' | 'red';
 type Phase = 'setup' | 'ban' | 'pick' | 'done';
+type DraftMode = 'standard' | 'custom' | 'tournament';
 type Role = 'all' | 'tank' | 'fighter' | 'assassin' | 'mage' | 'support' | 'marksman';
 type TeamRoleSlot = 'roam' | 'exp' | 'mid' | 'gold' | 'jungler';
 type BanTurn = { team: Team; count: number };
@@ -37,6 +38,14 @@ const BAN_TIER_LABELS: Record<3 | 4 | 5, string> = {
   3: 'EPIC',
   4: 'LEGEND',
   5: 'MYTHIC',
+};
+const ALT_BAN_STAGE_COUNTS: Record<Exclude<DraftMode, 'standard'>, [number, number]> = {
+  custom: [2, 1],
+  tournament: [3, 2],
+};
+const ALT_SEQUENCE_LABELS: Record<Exclude<DraftMode, 'standard'>, string> = {
+  custom: 'Ban 2 -> Pick 3 -> Ban 1 -> Pick 2',
+  tournament: 'Ban 3 -> Pick 3 -> Ban 2 -> Pick 2',
 };
 
 function normalizeRoleLabel(value: string): Role | null {
@@ -80,10 +89,13 @@ export default function DraftClient({
   ranks: RankHero[];
   roleMap: Record<number, string[]>;
 }) {
+  const [draftMode, setDraftMode] = useState<DraftMode>('standard');
   const [banCount, setBanCount] = useState<3 | 4 | 5>(3);
   const [phase, setPhase] = useState<Phase>('setup');
   const [banStep, setBanStep]   = useState(0);
   const [pickStep, setPickStep] = useState(0);
+  const [customStage, setCustomStage] = useState(0); // 0 ban2, 1 pick3, 2 ban1, 3 pick2
+  const [customStageStep, setCustomStageStep] = useState(0);
   const [selectedRole, setSelectedRole] = useState<Role>('all');
   const [history, setHistory] = useState<Array<{ type: 'ban'|'pick'; team: Team; hero: HeroListItem }>>([]);
 
@@ -112,10 +124,36 @@ export default function DraftClient({
       { team: 'red', count: secondRoundCount },
     ] as BanTurn[];
   }, [banCount]);
-  const currentBanTurn = banTurns[Math.min(banStep, banTurns.length - 1)];
+  const customBanTurns = useMemo(() => {
+    const stageCounts = draftMode === 'tournament' ? ALT_BAN_STAGE_COUNTS.tournament : ALT_BAN_STAGE_COUNTS.custom;
+    const count = stageCounts[customStage === 2 ? 1 : 0] ?? stageCounts[0];
+    return [
+      { team: 'blue', count },
+      { team: 'red', count },
+    ] as BanTurn[];
+  }, [customStage, draftMode]);
+  const activeBanTurns = draftMode === 'standard' ? banTurns : customBanTurns;
+  const activeBanStep = draftMode === 'custom' ? customStageStep : banStep;
+  const currentBanTurn = activeBanTurns[Math.min(activeBanStep, activeBanTurns.length - 1)];
   const currentTurn: Team = phase === 'ban'
     ? currentBanTurn.team
     : PICK_TURNS[Math.min(pickStep, PICK_TURNS.length - 1)];
+
+  const customPickTarget = customStage === 1 ? 6 : 10;
+  const stageLabel = useMemo(() => {
+    if (draftMode === 'standard') return null;
+
+    if (customStage === 0) {
+      return `Stage 1/4: Ban ${ALT_BAN_STAGE_COUNTS[draftMode][0]}`;
+    }
+    if (customStage === 1) {
+      return 'Stage 2/4: Pick 3';
+    }
+    if (customStage === 2) {
+      return `Stage 3/4: Ban ${ALT_BAN_STAGE_COUNTS[draftMode][1]}`;
+    }
+    return 'Stage 4/4: Pick 2';
+  }, [draftMode, customStage]);
 
   useEffect(() => {
     let active = true;
@@ -281,10 +319,13 @@ export default function DraftClient({
     setPhase('ban');
     setBanStep(0);
     setPickStep(0);
+    setCustomStage(0);
+    setCustomStageStep(0);
     setSelectedRole('all');
     setHistory([]);
-    setBlueBans(createBanSlots(banCount));
-    setRedBans(createBanSlots(banCount));
+    const effectiveBanCount = draftMode === 'standard' ? banCount : (draftMode === 'custom' ? 3 : 5);
+    setBlueBans(createBanSlots(effectiveBanCount));
+    setRedBans(createBanSlots(effectiveBanCount));
     setBluePicks([null, null, null, null, null]);
     setRedPicks([null, null, null, null, null]);
     setUsedIds(new Set());
@@ -328,9 +369,21 @@ export default function DraftClient({
     }
 
     setPendingBanSelections([]);
+    if (draftMode !== 'standard') {
+      if (customStageStep + 1 >= activeBanTurns.length) {
+        const nextStage = customStage + 1;
+        setCustomStage(nextStage);
+        setCustomStageStep(0);
+        setPhase('pick');
+      } else {
+        setCustomStageStep((s) => s + 1);
+      }
+      return;
+    }
+
     if (banStep + 1 >= banTurns.length) setPhase('pick');
     else setBanStep((s) => s + 1);
-  }, [banStep, banTurns.length, currentTurn]);
+  }, [banStep, banTurns.length, currentTurn, draftMode, customStage, customStageStep, activeBanTurns.length]);
 
   useEffect(() => {
     if (phase !== 'ban') return;
@@ -365,12 +418,34 @@ export default function DraftClient({
       next[next.findIndex(b => b === null)] = selected;
       setRedPicks(next);
     }
-    if (pickStep + 1 >= PICK_TURNS.length) setPhase('done');
-    else setPickStep(s => s + 1);
+    const nextPickStep = pickStep + 1;
+    if (draftMode !== 'standard') {
+      setPickStep(nextPickStep);
+      setCustomStageStep((s) => s + 1);
+
+      if (nextPickStep >= customPickTarget) {
+        const nextStage = customStage + 1;
+        if (nextStage >= 4) {
+          setPhase('done');
+        } else {
+          setCustomStage(nextStage);
+          setCustomStageStep(0);
+          setPhase(nextStage === 2 ? 'ban' : 'pick');
+        }
+      }
+    } else {
+      if (nextPickStep >= PICK_TURNS.length) setPhase('done');
+      else setPickStep(nextPickStep);
+    }
     setSelected(null);
   };
 
   const undo = () => {
+    if (draftMode === 'custom') {
+      reset();
+      return;
+    }
+
     if (history.length === 0) return;
     const last = history[history.length - 1];
     const newHistory = history.slice(0, -1);
@@ -405,6 +480,7 @@ export default function DraftClient({
 
   const reset = () => {
     setPhase('setup'); setBanStep(0); setPickStep(0); setSelectedRole('all'); setHistory([]);
+    setCustomStage(0); setCustomStageStep(0);
     setBlueBans(createBanSlots(banCount)); setRedBans(createBanSlots(banCount));
     setBluePicks([null,null,null,null,null]); setRedPicks([null,null,null,null,null]);
     setUsedIds(new Set()); setSelected(null); setCounterCache({}); setPendingBanSelections([]);
@@ -447,25 +523,85 @@ export default function DraftClient({
         <h1 className="text-4xl font-black mb-3">Draft Simulator</h1>
         <p className="text-gray-400 mb-6 text-center max-w-sm text-sm">Set the number of bans first, then choose your team side.</p>
         <div className="w-full max-w-sm mb-6">
-          <p className="text-xs font-bold tracking-wider text-gray-500 uppercase mb-2 text-center">Bans per Team</p>
-          <div className="grid grid-cols-3 gap-2">
-            {BAN_OPTIONS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setBanCount(option)}
-                className={`rounded-xl border px-4 py-3 text-sm font-black transition-all ${
-                  banCount === option
-                    ? 'border-blue-500 bg-blue-500 text-white'
-                    : 'border-white/10 bg-white/5 text-gray-300 hover:border-blue-500/40 hover:bg-white/10'
-                }`}
-              >
-                <span className="block text-xs tracking-wider text-white/80">{BAN_TIER_LABELS[option]}</span>
-                <span className="block mt-0.5">{option} Bans</span>
-              </button>
-            ))}
+          <p className="text-xs font-bold tracking-wider text-gray-500 uppercase mb-2 text-center">Mode</p>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setDraftMode('standard')}
+              className={`rounded-xl border px-4 py-2.5 text-xs font-black transition-all ${
+                draftMode === 'standard'
+                  ? 'border-blue-500 bg-blue-500 text-white'
+                  : 'border-white/10 bg-white/5 text-gray-300 hover:border-blue-500/40 hover:bg-white/10'
+              }`}
+            >
+              STANDARD
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDraftMode('custom');
+                setBanCount(3);
+              }}
+              className={`rounded-xl border px-4 py-2.5 text-xs font-black transition-all ${
+                draftMode === 'custom'
+                  ? 'border-amber-500 bg-amber-500 text-black'
+                  : 'border-white/10 bg-white/5 text-gray-300 hover:border-amber-500/40 hover:bg-white/10'
+              }`}
+            >
+              CUSTOM
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDraftMode('tournament');
+                setBanCount(5);
+              }}
+              className={`rounded-xl border px-4 py-2.5 text-xs font-black transition-all ${
+                draftMode === 'tournament'
+                  ? 'border-emerald-500 bg-emerald-500 text-black'
+                  : 'border-white/10 bg-white/5 text-gray-300 hover:border-emerald-500/40 hover:bg-white/10'
+              }`}
+            >
+              TOURNAMENT
+            </button>
           </div>
-          <p className="mt-3 text-center text-xs text-gray-500">Total ban phase: {banCount * 2} bans, then 10 picks</p>
+
+          <p className="text-xs font-bold tracking-wider text-gray-500 uppercase mb-2 text-center">Bans per Team</p>
+          <div className={`grid gap-2 ${draftMode === 'standard' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+            {draftMode !== 'standard' ? (
+              <div className={`rounded-xl border px-4 py-3 text-center ${draftMode === 'custom' ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/40 bg-emerald-500/10'}`}>
+                <p className={`text-xs font-black tracking-wider ${draftMode === 'custom' ? 'text-amber-200' : 'text-emerald-200'}`}>
+                  {draftMode === 'custom' ? 'CUSTOM SEQUENCE' : 'TOURNAMENT SEQUENCE'}
+                </p>
+                <p className={`mt-1 text-[11px] ${draftMode === 'custom' ? 'text-amber-100/80' : 'text-emerald-100/80'}`}>
+                  {ALT_SEQUENCE_LABELS[draftMode]}
+                </p>
+              </div>
+            ) : (
+              BAN_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setBanCount(option)}
+                  className={`rounded-xl border px-4 py-3 text-sm font-black transition-all ${
+                    banCount === option
+                      ? 'border-blue-500 bg-blue-500 text-white'
+                      : 'border-white/10 bg-white/5 text-gray-300 hover:border-blue-500/40 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="block text-xs tracking-wider text-white/80">{BAN_TIER_LABELS[option]}</span>
+                  <span className="block mt-0.5">{option} Bans</span>
+                </button>
+              ))
+            )}
+          </div>
+          <p className="mt-3 text-center text-xs text-gray-500">
+            {draftMode === 'custom'
+              ? 'Custom flow: 6 bans total, then 10 picks in split phases'
+              : draftMode === 'tournament'
+              ? 'Tournament flow: 10 bans total, then 10 picks in split phases'
+              : `Total ban phase: ${banCount * 2} bans, then 10 picks`}
+          </p>
         </div>
         <div className="grid sm:grid-cols-2 gap-4 w-full max-w-sm">
           <button
@@ -559,12 +695,17 @@ export default function DraftClient({
                       TURN: {currentTurn === 'blue' ? 'BLUE' : 'RED'} TEAM
                     </p>
                     <p className="mt-1 text-[9px] md:text-[10px] text-gray-500">
-                      {phase === 'ban' ? `${banStep + 1}/${banTurns.length} ban` : `${pickStep + 1}/${PICK_TURNS.length} pick`}
+                      {phase === 'ban'
+                        ? `${activeBanStep + 1}/${activeBanTurns.length} ban`
+                        : `${pickStep + 1}/${PICK_TURNS.length} pick`}
                     </p>
                     {phase === 'ban' && (
                       <p className="mt-0.5 text-[9px] md:text-[10px] text-red-300">
                         Select {currentBanTurn.count} hero{currentBanTurn.count > 1 ? 'es' : ''} ({pendingBanSelections.length}/{currentBanTurn.count})
                       </p>
+                    )}
+                    {draftMode !== 'standard' && stageLabel && (
+                      <p className="mt-0.5 text-[9px] md:text-[10px] text-amber-300">{stageLabel}</p>
                     )}
                   </>
                 ) : (

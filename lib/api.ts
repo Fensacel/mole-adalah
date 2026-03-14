@@ -77,6 +77,85 @@ export interface HeroRelationData {
   weak: HeroListItem[];
 }
 
+export interface HeroAbility {
+  section: string;
+  name: string;
+  image_url: string;
+  tags: string[];
+  description: string;
+  properties: Record<string, unknown>;
+}
+
+export interface HeroAbilityData {
+  slug: string;
+  name: string;
+  url: string;
+  intro: string;
+  infobox: Record<string, string>;
+  abilities: HeroAbility[];
+}
+
+export interface MplIdTeam {
+  team_name: string;
+  team_logo: string;
+  team_url: string;
+}
+
+export interface MplIdStanding {
+  rank: number;
+  team_name: string;
+  team_logo: string;
+  match_point: number;
+  match_wl: string;
+  net_game_win: number;
+  game_wl: string;
+}
+
+export interface MplIdRosterMember {
+  player_name: string;
+  player_role: string;
+  player_image: string;
+}
+
+export interface MplIdTeamDetail {
+  team_name: string;
+  team_logo: string;
+  social_media: Record<string, string>;
+  roster: MplIdRosterMember[];
+}
+
+export interface MplIdTeamStat {
+  [key: string]: string | number | boolean | null;
+}
+
+export interface MplIdPlayerStat {
+  [key: string]: string | number | boolean | null;
+}
+
+export interface MplIdTransfer {
+  [key: string]: string | number | boolean | null;
+}
+
+export interface MplIdHeroStat {
+  [key: string]: string | number | boolean | null;
+}
+
+export interface MplIdHeroPool {
+  [key: string]: string | number | boolean | null;
+}
+
+export interface MplIdPlayerPool {
+  [key: string]: string | number | boolean | null;
+}
+
+export interface MplIdEndpointHealth {
+  endpoint: string;
+  ok: boolean;
+  status: number;
+  count: number | null;
+  message: string;
+}
+
 interface FetchApiOptions {
   cache?: RequestCache;
   revalidate?: number | false;
@@ -457,6 +536,75 @@ function normalizeHeroIdList(input: unknown): number[] {
   return [];
 }
 
+function normalizeAbilityFileVariants(name: string): string[] {
+  const raw = name.trim();
+  if (!raw) return [];
+
+  const decoded = decodeURIComponent(raw);
+  const noSlash = decoded.replace(/[\\/]/g, "-").trim();
+  const noColon = noSlash.replace(/:/g, "").trim();
+
+  return [...new Set([raw, decoded, noSlash, noColon].filter((value) => value.length > 0))];
+}
+
+function normalizeAbilityEntry(raw: unknown): HeroAbility | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const entry = raw as Record<string, unknown>;
+  const section = typeof entry.section === "string" ? entry.section.trim() : "";
+  const name = typeof entry.name === "string" ? entry.name.trim() : "";
+  const image_url = typeof entry.image_url === "string" ? entry.image_url.trim() : "";
+  const tags = Array.isArray(entry.tags)
+    ? entry.tags
+        .filter((tag): tag is string => typeof tag === "string")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0)
+    : [];
+  const description = typeof entry.description === "string" ? entry.description.trim() : "";
+  const properties = entry.properties && typeof entry.properties === "object" ? (entry.properties as Record<string, unknown>) : {};
+
+  if (!name) return null;
+
+  return {
+    section,
+    name,
+    image_url,
+    tags,
+    description,
+    properties,
+  };
+}
+
+export async function getHeroAbilities(name: string): Promise<HeroAbilityData | null> {
+  const variants = normalizeAbilityFileVariants(name);
+  if (!variants.length) return null;
+
+  for (const variant of variants) {
+    try {
+      const mod = await import(`../app/heroes/[name]/hero_abilities/${variant}.json`);
+      const payload = (mod.default ?? mod) as Record<string, unknown>;
+      const abilitiesRaw = Array.isArray(payload.abilities) ? payload.abilities : [];
+
+      const abilities = abilitiesRaw
+        .map((entry) => normalizeAbilityEntry(entry))
+        .filter((entry): entry is HeroAbility => !!entry);
+
+      return {
+        slug: typeof payload.slug === "string" ? payload.slug : variant,
+        name: typeof payload.name === "string" ? payload.name : variant,
+        url: typeof payload.url === "string" ? payload.url : "",
+        intro: typeof payload.intro === "string" ? payload.intro : "",
+        infobox: payload.infobox && typeof payload.infobox === "object" ? (payload.infobox as Record<string, string>) : {},
+        abilities,
+      };
+    } catch {
+      // Continue searching across filename variants.
+    }
+  }
+
+  return null;
+}
+
 export async function getHeroSkillCombo(name: string): Promise<HeroSkillCombo[]> {
   const data = await fetchHeroAPI<{
     data?: {
@@ -579,4 +727,185 @@ export async function getHeroDetailStats(name: string): Promise<HeroDetailStat[]
   const data = await fetchHeroAPI<unknown>("/hero-detail-stats", name);
   if (!data) return [];
   return normalizeHeroStats(data);
+}
+
+export async function getMplIdTeams(): Promise<MplIdTeam[]> {
+  const data = await fetchAPI<MplIdTeam[]>("/mplid/teams/");
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .filter((team) => team && typeof team.team_name === "string")
+    .map((team) => ({
+      team_name: team.team_name,
+      team_logo: typeof team.team_logo === "string" ? team.team_logo : "",
+      team_url: typeof team.team_url === "string" ? team.team_url : "",
+    }));
+}
+
+export function extractMplTeamId(teamUrl: string): string | null {
+  if (!teamUrl || typeof teamUrl !== "string") return null;
+  const normalized = teamUrl.trim().replace(/\/+$/, "");
+  if (!normalized) return null;
+  const last = normalized.split("/").filter(Boolean).pop() ?? "";
+  return last.length > 0 ? last.toLowerCase() : null;
+}
+
+export async function getMplIdStandings(): Promise<MplIdStanding[]> {
+  const data = await fetchAPI<Array<Record<string, unknown>>>("/mplid/standings/");
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .map((row) => ({
+      rank: typeof row.rank === "number" ? row.rank : Number(row.rank ?? 0),
+      team_name: typeof row.team_name === "string" ? row.team_name : "Unknown",
+      team_logo: typeof row.team_logo === "string" ? row.team_logo : "",
+      match_point: typeof row.match_point === "number" ? row.match_point : Number(row.match_point ?? 0),
+      match_wl: typeof row.match_wl === "string" ? row.match_wl : "0-0",
+      net_game_win: typeof row.net_game_win === "number" ? row.net_game_win : Number(row.net_game_win ?? 0),
+      game_wl: typeof row.game_wl === "string" ? row.game_wl : "0-0",
+    }))
+    .filter((row) => Number.isFinite(row.rank) && row.team_name.length > 0)
+    .sort((a, b) => a.rank - b.rank);
+}
+
+export async function getMplIdTeamDetail(teamId: string): Promise<MplIdTeamDetail | null> {
+  const normalized = teamId.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const data = await fetchAPI<Record<string, unknown>>(`/mplid/teams/${encodeURIComponent(normalized)}/`);
+  if (!data || typeof data !== "object") return null;
+
+  const rosterRaw = Array.isArray(data.roster) ? data.roster : [];
+  const roster = rosterRaw
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const row = entry as Record<string, unknown>;
+      return {
+        player_name: typeof row.player_name === "string" ? row.player_name : "Unknown",
+        player_role: typeof row.player_role === "string" ? row.player_role : "Unknown",
+        player_image: typeof row.player_image === "string" ? row.player_image : "",
+      };
+    })
+    .filter((entry): entry is MplIdRosterMember => !!entry);
+
+  const socialRaw = data.social_media && typeof data.social_media === "object"
+    ? (data.social_media as Record<string, unknown>)
+    : {};
+  const social_media = Object.fromEntries(
+    Object.entries(socialRaw)
+      .filter(([, value]) => typeof value === "string" && value.length > 0)
+      .map(([key, value]) => [key, value as string]),
+  );
+
+  return {
+    team_name: typeof data.team_name === "string" ? data.team_name : normalized.toUpperCase(),
+    team_logo: typeof data.team_logo === "string" ? data.team_logo : "",
+    social_media,
+    roster,
+  };
+}
+
+export async function getMplIdTeamStats(teamId?: string): Promise<MplIdTeamStat[]> {
+  const endpoint = teamId?.trim()
+    ? `/mplid/team-stats/?team=${encodeURIComponent(teamId.trim().toLowerCase())}`
+    : "/mplid/team-stats/";
+
+  const data = await fetchAPI<Array<Record<string, unknown>>>(endpoint, { revalidate: 600 });
+  if (!Array.isArray(data)) return [];
+
+  return data.map((row) => {
+    const normalized: MplIdTeamStat = {};
+    for (const [key, value] of Object.entries(row)) {
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null) {
+        normalized[key] = value;
+      }
+    }
+    return normalized;
+  });
+}
+
+export async function getMplIdPlayerStats(teamId?: string): Promise<MplIdPlayerStat[]> {
+  const endpoint = teamId?.trim()
+    ? `/mplid/player-stats/?team=${encodeURIComponent(teamId.trim().toLowerCase())}`
+    : "/mplid/player-stats/";
+
+  const data = await fetchAPI<Array<Record<string, unknown>>>(endpoint, { revalidate: 600 });
+  if (!Array.isArray(data)) return [];
+
+  return data.map((row) => {
+    return normalizeMplScalarRow(row);
+  });
+}
+
+function normalizeMplScalarRow(row: Record<string, unknown>) {
+  const normalized: Record<string, string | number | boolean | null> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null) {
+      normalized[key] = value;
+    }
+  }
+  return normalized;
+}
+
+export async function getMplIdTransfers(): Promise<MplIdTransfer[]> {
+  const data = await fetchAPI<Array<Record<string, unknown>>>("/mplid/transfers/", { revalidate: 600 });
+  if (!Array.isArray(data)) return [];
+  return data.map((row) => normalizeMplScalarRow(row));
+}
+
+export async function getMplIdHeroStats(): Promise<MplIdHeroStat[]> {
+  const data = await fetchAPI<Array<Record<string, unknown>>>("/mplid/hero-stats/", { revalidate: 600 });
+  if (!Array.isArray(data)) return [];
+  return data.map((row) => normalizeMplScalarRow(row));
+}
+
+export async function getMplIdHeroPools(): Promise<MplIdHeroPool[]> {
+  const data = await fetchAPI<Array<Record<string, unknown>>>("/mplid/hero-pools/", { revalidate: 600 });
+  if (!Array.isArray(data)) return [];
+  return data.map((row) => normalizeMplScalarRow(row));
+}
+
+export async function getMplIdPlayerPools(): Promise<MplIdPlayerPool[]> {
+  const data = await fetchAPI<Array<Record<string, unknown>>>("/mplid/player-pools/", { revalidate: 600 });
+  if (!Array.isArray(data)) return [];
+  return data.map((row) => normalizeMplScalarRow(row));
+}
+
+export async function getMplIdEndpointHealth(endpoint: string): Promise<MplIdEndpointHealth> {
+  try {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return {
+        endpoint,
+        ok: false,
+        status: res.status,
+        count: null,
+        message: `Upstream responded ${res.status}`,
+      };
+    }
+
+    const payload = await res.json();
+    const count = Array.isArray(payload) ? payload.length : null;
+
+    return {
+      endpoint,
+      ok: true,
+      status: res.status,
+      count,
+      message: Array.isArray(payload)
+        ? `Loaded ${count} row${count === 1 ? "" : "s"}`
+        : "Loaded object payload",
+    };
+  } catch {
+    return {
+      endpoint,
+      ok: false,
+      status: 0,
+      count: null,
+      message: "Network error while reaching upstream",
+    };
+  }
 }

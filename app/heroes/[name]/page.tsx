@@ -5,6 +5,7 @@ export const runtime = 'edge';
 import Link from "next/link";
 import {
   getAllHeroes,
+  getHeroAbilities,
   getHeroDetail,
   getHeroRate,
   getHeroCounter,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/api";
 import StatCard from "@/components/StatCard";
 import HeroRelationTable from "@/components/HeroRelationTable";
+import HeroAbilitiesPanel from "@/components/HeroAbilitiesPanel";
 import { ArrowLeft, ChevronRight, Shield, Swords, Target, Zap } from "lucide-react";
 
 interface Props {
@@ -50,13 +52,14 @@ export default async function HeroDetailPage({ params }: Props) {
   const { name } = await params;
   const heroName = await resolveHeroName(name);
 
-  const [detail, rate, counter, compatibility, skillCombos, relation] = await Promise.all([
+  const [detail, rate, counter, compatibility, skillCombos, relation, abilityData] = await Promise.all([
     getHeroDetail(heroName),
     getHeroRate(heroName),
     getHeroCounter(heroName),
     getHeroCompatibility(heroName),
     getHeroSkillCombo(heroName),
     getHeroRelation(heroName),
+    getHeroAbilities(heroName),
   ]);
 
   if (!detail) notFound();
@@ -66,7 +69,8 @@ export default async function HeroDetailPage({ params }: Props) {
   const useRate = counter?.main_hero_appearance_rate ?? rate?.app_rate ?? 0;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
+    <div className="min-h-screen bg-[#060b17]">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
       <Link
         href="/heroes"
         className="mb-6 inline-flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-blue-300"
@@ -171,6 +175,8 @@ export default async function HeroDetailPage({ params }: Props) {
         </section>
       )}
 
+      {abilityData && abilityData.abilities.length > 0 && <HeroAbilitiesPanel abilityData={abilityData} />}
+
       {relation && (relation.assist.length > 0 || relation.strong.length > 0 || relation.weak.length > 0) && (
         <section className="mb-8 rounded-2xl border border-blue-500/20 bg-[#0b1221] p-5 sm:p-6">
           <h2 className="mb-4 text-lg font-bold text-blue-100">Hero Relation</h2>
@@ -258,6 +264,7 @@ export default async function HeroDetailPage({ params }: Props) {
           <p className="text-sm text-gray-400">The API did not return counter/compatibility data for this hero.</p>
         </div>
       )}
+      </div>
     </div>
   );
 }

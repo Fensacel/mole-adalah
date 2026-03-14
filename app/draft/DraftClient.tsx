@@ -11,6 +11,8 @@ type DraftMode = 'standard' | 'custom' | 'tournament';
 type Role = 'all' | 'tank' | 'fighter' | 'assassin' | 'mage' | 'support' | 'marksman';
 type TeamRoleSlot = 'roam' | 'exp' | 'mid' | 'gold' | 'jungler';
 type BanTurn = { team: Team; count: number };
+type MetricKey = 'earlyMid' | 'lateGame' | 'damage' | 'survivability' | 'control' | 'push' | 'coordination';
+type TeamMetricProfile = Record<MetricKey, number>;
 
 const PICK_TURNS: Team[] = ['blue','red','red','blue','blue','red','red','blue','blue','red'];
 const BAN_OPTIONS = [3, 4, 5] as const;
@@ -30,7 +32,13 @@ interface CounterHero { name: string; head: string; hero_id: number; hero_win_ra
 interface RecommendedPick extends CounterHero {
   score: number;
   matches: number;
-  metric: 'cr' | 'pr';
+  metric: 'cr' | 'pr' | 'hybrid';
+}
+
+interface RecommendedBan extends CounterHero {
+  score: number;
+  threat: number;
+  pressure: number;
 }
 
 type CounterCache = Record<number, CounterHero[]>;
@@ -47,6 +55,169 @@ const ALT_SEQUENCE_LABELS: Record<Exclude<DraftMode, 'standard'>, string> = {
   custom: 'Ban 2 -> Pick 3 -> Ban 1 -> Pick 2',
   tournament: 'Ban 3 (Alt) -> Pick 3 -> Ban 2 (Alt) -> Pick 2',
 };
+const METRIC_LABELS: Array<{ key: MetricKey; label: string }> = [
+  { key: 'earlyMid', label: 'Early to Mid Game Potential' },
+  { key: 'lateGame', label: 'Late Game Potential' },
+  { key: 'damage', label: 'Damage Potential' },
+  { key: 'survivability', label: 'Survivability' },
+  { key: 'control', label: 'Control Ability' },
+  { key: 'push', label: 'Push Ability' },
+  { key: 'coordination', label: 'Team Coordination' },
+];
+
+const ROLE_METRIC_PRESETS: Record<Exclude<Role, 'all'>, TeamMetricProfile> = {
+  tank: {
+    earlyMid: 6.2,
+    lateGame: 6.0,
+    damage: 3.9,
+    survivability: 8.8,
+    control: 8.1,
+    push: 4.2,
+    coordination: 7.6,
+  },
+  fighter: {
+    earlyMid: 7.0,
+    lateGame: 6.8,
+    damage: 7.2,
+    survivability: 6.8,
+    control: 5.6,
+    push: 6.7,
+    coordination: 6.1,
+  },
+  assassin: {
+    earlyMid: 7.6,
+    lateGame: 6.4,
+    damage: 8.6,
+    survivability: 4.4,
+    control: 4.6,
+    push: 5.1,
+    coordination: 5.0,
+  },
+  mage: {
+    earlyMid: 6.8,
+    lateGame: 8.1,
+    damage: 8.2,
+    survivability: 4.8,
+    control: 7.3,
+    push: 5.4,
+    coordination: 6.7,
+  },
+  support: {
+    earlyMid: 6.3,
+    lateGame: 7.0,
+    damage: 4.3,
+    survivability: 6.0,
+    control: 7.5,
+    push: 4.2,
+    coordination: 8.8,
+  },
+  marksman: {
+    earlyMid: 5.2,
+    lateGame: 8.9,
+    damage: 8.8,
+    survivability: 4.5,
+    control: 3.8,
+    push: 8.0,
+    coordination: 6.0,
+  },
+};
+
+const NEUTRAL_PROFILE: TeamMetricProfile = {
+  earlyMid: 5.8,
+  lateGame: 5.8,
+  damage: 5.8,
+  survivability: 5.8,
+  control: 5.8,
+  push: 5.8,
+  coordination: 5.8,
+};
+
+const LINEUP_WEIGHTS: Record<MetricKey, number> = {
+  earlyMid: 1.1,
+  lateGame: 1.0,
+  damage: 1.2,
+  survivability: 1.1,
+  control: 1.0,
+  push: 0.8,
+  coordination: 1.2,
+};
+
+function clampMetric(value: number) {
+  return Math.max(0, Math.min(10, value));
+}
+
+function combineProfiles(profiles: TeamMetricProfile[]): TeamMetricProfile {
+  if (!profiles.length) return { ...NEUTRAL_PROFILE };
+
+  const combined = { ...NEUTRAL_PROFILE };
+  METRIC_LABELS.forEach(({ key }) => {
+    const sum = profiles.reduce((acc, profile) => acc + profile[key], 0);
+    combined[key] = clampMetric(sum / profiles.length);
+  });
+  return combined;
+}
+
+function getLineupRating(profile: TeamMetricProfile) {
+  const totalWeight = Object.values(LINEUP_WEIGHTS).reduce((sum, w) => sum + w, 0);
+  const weighted = METRIC_LABELS.reduce((sum, metric) => sum + profile[metric.key] * LINEUP_WEIGHTS[metric.key], 0);
+  return clampMetric(weighted / totalWeight);
+}
+
+function getHeroRoleProfile(
+  hero: HeroListItem,
+  roleMap: Record<number, string[]>,
+  rankStatsMap: Map<string, RankHero>,
+): TeamMetricProfile {
+  const roles = (roleMap[hero.hero_id] ?? [])
+    .map((role) => normalizeRoleLabel(role))
+    .filter((role): role is Exclude<Role, 'all'> => !!role && role !== 'all');
+
+  const roleProfiles = roles.map((role) => ROLE_METRIC_PRESETS[role]);
+  const base = combineProfiles(roleProfiles);
+
+  const stat = rankStatsMap.get(hero.name);
+  const winRate = stat?.win_rate ?? 0.5;
+  const useRate = stat?.use_rate ?? 0;
+  const banRate = stat?.ban_rate ?? 0;
+  const performanceBoost = (winRate - 0.5) * 8 + useRate * 1.8 - banRate * 0.9;
+
+  return {
+    earlyMid: clampMetric(base.earlyMid + performanceBoost * 0.9),
+    lateGame: clampMetric(base.lateGame + performanceBoost * 1.0),
+    damage: clampMetric(base.damage + performanceBoost * 1.1),
+    survivability: clampMetric(base.survivability + performanceBoost * 0.7),
+    control: clampMetric(base.control + performanceBoost * 0.75),
+    push: clampMetric(base.push + performanceBoost * 0.8),
+    coordination: clampMetric(base.coordination + performanceBoost * 0.85),
+  };
+}
+
+function getCounterPressureAgainst(
+  candidateId: number,
+  targetPicks: HeroListItem[],
+  counterCache: CounterCache,
+) {
+  return targetPicks.reduce((sum, target) => {
+    const counters = counterCache[target.hero_id] ?? [];
+    const found = counters.find((counter) => counter.hero_id === candidateId);
+    return found ? sum + Math.max(0, found.increase_win_rate) : sum;
+  }, 0);
+}
+
+function getDirectCounterScore(
+  friendlyPicks: HeroListItem[],
+  enemyPicks: HeroListItem[],
+  counterCache: CounterCache,
+) {
+  return enemyPicks.reduce((teamScore, enemy) => {
+    const counters = counterCache[enemy.hero_id] ?? [];
+    const score = friendlyPicks.reduce((sum, hero) => {
+      const found = counters.find((counter) => counter.hero_id === hero.hero_id);
+      return found ? sum + found.increase_win_rate : sum;
+    }, 0);
+    return teamScore + score;
+  }, 0);
+}
 
 function createAlternatingBanTurns(perTeamCount: number, firstTeam: Team = 'blue') {
   const secondTeam: Team = firstTeam === 'blue' ? 'red' : 'blue';
@@ -76,6 +247,16 @@ function calcWinProbability(blueRates: number[], redRates: number[]) {
   const total = blueAvg + redAvg;
   if (total <= 0) return { blue: 50, red: 50 };
   return { blue: (blueAvg / total) * 100, red: (redAvg / total) * 100 };
+}
+
+function calcWinProbabilityFromScores(blueScore: number, redScore: number) {
+  const safeBlue = Math.max(0.1, blueScore);
+  const safeRed = Math.max(0.1, redScore);
+  const total = safeBlue + safeRed;
+  return {
+    blue: (safeBlue / total) * 100,
+    red: (safeRed / total) * 100,
+  };
 }
 
 function createBanSlots(count: number) {
@@ -181,24 +362,15 @@ export default function DraftClient({
   useEffect(() => {
     let active = true;
 
-    const hydrateEnemyCounters = async () => {
-      if (phase !== 'pick') {
-        if (active) {
-          setRecommendationLoading(false);
-        }
+    const hydratePickCounters = async () => {
+      const pickedHeroes = [...bluePicks, ...redPicks].filter(Boolean) as HeroListItem[];
+      if (!pickedHeroes.length) {
+        if (active) setRecommendationLoading(false);
         return;
       }
 
-      const enemyPicks = (currentTurn === 'blue' ? redPicks : bluePicks).filter(Boolean) as HeroListItem[];
-      if (!enemyPicks.length) {
-        if (active) {
-          setRecommendationLoading(false);
-        }
-        return;
-      }
-
-      const uncachedEnemies = enemyPicks.filter((hero) => !counterCache[hero.hero_id]);
-      if (!uncachedEnemies.length) {
+      const uncached = pickedHeroes.filter((hero) => !counterCache[hero.hero_id]);
+      if (!uncached.length) {
         if (active) setRecommendationLoading(false);
         return;
       }
@@ -206,7 +378,7 @@ export default function DraftClient({
       if (active) setRecommendationLoading(true);
 
       const responses = await Promise.allSettled(
-        uncachedEnemies.map(async (hero) => {
+        uncached.map(async (hero) => {
           const res = await fetch(`/api/hero/counter/${encodeURIComponent(hero.name)}`);
           if (!res.ok) return null;
           const data = await res.json() as { counters: CounterHero[] };
@@ -227,12 +399,12 @@ export default function DraftClient({
       setRecommendationLoading(false);
     };
 
-    hydrateEnemyCounters();
+    hydratePickCounters();
 
     return () => {
       active = false;
     };
-  }, [phase, currentTurn, bluePicks, redPicks, counterCache]);
+  }, [bluePicks, redPicks, counterCache]);
 
   const pickRecommendations = useMemo(() => {
     if (phase !== 'pick') return [] as RecommendedPick[];
@@ -246,13 +418,16 @@ export default function DraftClient({
         .map((hero) => {
           const stat = rankStatsMap.get(hero.name);
           const pickRate = stat?.use_rate ?? 0;
+          const winRate = stat?.win_rate ?? 0;
+          const banRate = stat?.ban_rate ?? 0;
+          const threatScore = pickRate * 0.6 + winRate * 0.35 - banRate * 0.1;
           return {
             name: hero.name,
             head: hero.head,
             hero_id: hero.hero_id,
-            hero_win_rate: stat?.win_rate ?? 0,
+            hero_win_rate: winRate,
             increase_win_rate: pickRate,
-            score: pickRate,
+            score: threatScore,
             matches: 0,
             metric: 'pr' as const,
           };
@@ -270,16 +445,22 @@ export default function DraftClient({
       const counters = counterCache[enemy.hero_id] ?? [];
       for (const counter of counters) {
         if (usedIds.has(counter.hero_id)) continue;
+        const stat = rankStatsMap.get(counter.name);
+        const winRate = stat?.win_rate ?? counter.hero_win_rate;
+        const useRate = stat?.use_rate ?? 0;
+        const banRate = stat?.ban_rate ?? 0;
+        const hybridScore = counter.increase_win_rate * 0.7 + winRate * 0.2 + useRate * 0.15 - banRate * 0.05;
         const current = aggregated.get(counter.hero_id);
         if (current) {
-          current.score += counter.increase_win_rate;
+          current.score += hybridScore;
           current.matches += 1;
         } else {
           aggregated.set(counter.hero_id, {
             ...counter,
-            score: counter.increase_win_rate,
+            hero_win_rate: winRate,
+            score: hybridScore,
             matches: 1,
-            metric: 'cr',
+            metric: 'hybrid',
           });
         }
       }
@@ -535,22 +716,6 @@ export default function DraftClient({
     setUsedIds(new Set()); setSelected(null); setCounterCache({}); setPendingBanSelections([]);
   };
 
-  const winProb = (() => {
-    const bWRs = bluePicks.filter(Boolean).map(h => rankMap.get(h!.name) ?? 0.5);
-    const rWRs = redPicks.filter(Boolean).map(h => rankMap.get(h!.name) ?? 0.5);
-    return calcWinProbability(bWRs, rWRs);
-  })();
-
-  const projectedWinProb = (() => {
-    if (!selected || phase !== 'pick') return null;
-    const bWRs = bluePicks.filter(Boolean).map(h => rankMap.get(h!.name) ?? 0.5);
-    const rWRs = redPicks.filter(Boolean).map(h => rankMap.get(h!.name) ?? 0.5);
-    const selectedRate = rankMap.get(selected.name) ?? 0.5;
-    if (currentTurn === 'blue') bWRs.push(selectedRate);
-    else rWRs.push(selectedRate);
-    return calcWinProbability(bWRs, rWRs);
-  })();
-
   const bluePickStats = useMemo(() => {
     const picks = bluePicks.filter(Boolean) as HeroListItem[];
     const rates = picks.map((hero) => ({ hero, rate: rankMap.get(hero.name) ?? 0.5 }));
@@ -564,6 +729,96 @@ export default function DraftClient({
     const avg = rates.length ? rates.reduce((sum, item) => sum + item.rate, 0) / rates.length : 0.5;
     return { rates, avg };
   }, [redPicks, rankMap]);
+
+  const blueTeamProfile = useMemo(() => {
+    const picks = bluePicks.filter(Boolean) as HeroListItem[];
+    const profiles = picks.map((hero) => getHeroRoleProfile(hero, roleMap, rankStatsMap));
+    return combineProfiles(profiles);
+  }, [bluePicks, roleMap, rankStatsMap]);
+
+  const redTeamProfile = useMemo(() => {
+    const picks = redPicks.filter(Boolean) as HeroListItem[];
+    const profiles = picks.map((hero) => getHeroRoleProfile(hero, roleMap, rankStatsMap));
+    return combineProfiles(profiles);
+  }, [redPicks, roleMap, rankStatsMap]);
+
+  const blueLineupRating = useMemo(() => getLineupRating(blueTeamProfile), [blueTeamProfile]);
+  const redLineupRating = useMemo(() => getLineupRating(redTeamProfile), [redTeamProfile]);
+
+  const counterIndex = useMemo(() => {
+    const bluePicked = bluePicks.filter(Boolean) as HeroListItem[];
+    const redPicked = redPicks.filter(Boolean) as HeroListItem[];
+    if (!bluePicked.length || !redPicked.length) {
+      return { blue: 0, red: 0, delta: 0 };
+    }
+
+    const blueScoreRaw = getDirectCounterScore(bluePicked, redPicked, counterCache);
+    const redScoreRaw = getDirectCounterScore(redPicked, bluePicked, counterCache);
+    const pairCount = Math.max(1, bluePicked.length * redPicked.length);
+
+    const blueScore = (blueScoreRaw / pairCount) * 100;
+    const redScore = (redScoreRaw / pairCount) * 100;
+    const delta = blueScore - redScore;
+    return {
+      blue: blueScore,
+      red: redScore,
+      delta,
+    };
+  }, [bluePicks, redPicks, counterCache]);
+
+  const winProb = useMemo(() => {
+    const blueScore = blueLineupRating + bluePickStats.avg * 4 + counterIndex.delta * 0.45;
+    const redScore = redLineupRating + redPickStats.avg * 4 - counterIndex.delta * 0.45;
+    return calcWinProbabilityFromScores(blueScore, redScore);
+  }, [blueLineupRating, redLineupRating, bluePickStats.avg, redPickStats.avg, counterIndex.delta]);
+
+  const projectedWinProb = useMemo(() => {
+    if (!selected || phase !== 'pick') return null;
+
+    const bWRs = bluePicks.filter(Boolean).map((h) => rankMap.get(h!.name) ?? 0.5);
+    const rWRs = redPicks.filter(Boolean).map((h) => rankMap.get(h!.name) ?? 0.5);
+    const selectedRate = rankMap.get(selected.name) ?? 0.5;
+    if (currentTurn === 'blue') bWRs.push(selectedRate);
+    else rWRs.push(selectedRate);
+
+    return calcWinProbability(bWRs, rWRs);
+  }, [selected, phase, bluePicks, redPicks, rankMap, currentTurn]);
+
+  const banRecommendations = useMemo(() => {
+    if (phase !== 'ban') return [] as RecommendedBan[];
+
+    const ownPicks = (currentTurn === 'blue' ? bluePicks : redPicks).filter(Boolean) as HeroListItem[];
+
+    return heroes
+      .filter((hero) => !usedIds.has(hero.hero_id))
+      .filter((hero) => !pendingBanSelections.some((picked) => picked.hero_id === hero.hero_id))
+      .map((hero) => {
+        const stat = rankStatsMap.get(hero.name);
+        const winRate = stat?.win_rate ?? 0;
+        const banRate = stat?.ban_rate ?? 0;
+        const useRate = stat?.use_rate ?? 0;
+        const threat = winRate * 0.45 + banRate * 0.35 + useRate * 0.2;
+        const pressure = ownPicks.length ? getCounterPressureAgainst(hero.hero_id, ownPicks, counterCache) : 0;
+        const score = threat + pressure * 0.9;
+
+        return {
+          name: hero.name,
+          head: hero.head,
+          hero_id: hero.hero_id,
+          hero_win_rate: winRate,
+          increase_win_rate: pressure,
+          score,
+          threat,
+          pressure,
+        };
+      })
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.threat !== a.threat) return b.threat - a.threat;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, 8);
+  }, [phase, currentTurn, bluePicks, redPicks, heroes, usedIds, pendingBanSelections, rankStatsMap, counterCache]);
 
   // ─── SETUP ───────────────────────────────────────────────────────────────────
   if (phase === 'setup') {
@@ -800,7 +1055,7 @@ export default function DraftClient({
                   </div>
                 )}
                 <p className="mt-1 text-[9px] md:text-[10px] text-gray-500 leading-relaxed">
-                  Note: Win Probability is an estimate based on selected hero WR data, not a guaranteed match result.
+                  Note: Win Probability combines WR trend, lineup composition, and counter index. This is still an estimate, not a guaranteed match result.
                 </p>
               </div>
 
@@ -880,6 +1135,39 @@ export default function DraftClient({
             </div>
           )}
 
+          {phase === 'ban' && (
+            <div className="mb-3 md:mb-4 rounded-lg border border-red-500/20 bg-[#1a1115] p-2.5 md:p-3">
+              <p className="mb-2 text-[10px] uppercase tracking-wider text-red-300">
+                Recommended Bans {recommendationLoading ? '• Loading...' : ''}
+              </p>
+              {banRecommendations.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {banRecommendations.map((hero) => (
+                    <button
+                      key={hero.hero_id}
+                      type="button"
+                      onClick={() => handleHeroClick(hero)}
+                      className="flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-left transition-colors hover:bg-red-500/20"
+                    >
+                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border border-red-400/40">
+                        <Image src={hero.head} alt={hero.name} fill className="object-cover" unoptimized sizes="32px" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold text-white">{hero.name}</p>
+                        <p className="text-[10px] text-red-300">
+                          Threat {(hero.threat * 100).toFixed(1)}%
+                          {hero.pressure > 0 ? ` • Press +${(hero.pressure * 100).toFixed(1)}%` : ''}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">No ban recommendation available yet.</p>
+              )}
+            </div>
+          )}
+
           {phase === 'pick' && (
             <div className="mb-3 md:mb-4 rounded-lg border border-white/10 bg-[#0f1420] p-2.5 md:p-3">
               <p className="mb-2 text-[10px] uppercase tracking-wider text-gray-500">
@@ -902,6 +1190,8 @@ export default function DraftClient({
                         <p className={`text-[10px] ${hero.metric === 'pr' ? 'text-blue-300' : hero.score >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {hero.metric === 'pr'
                             ? `PR ${(hero.score * 100).toFixed(1)}%`
+                            : hero.metric === 'hybrid'
+                            ? `Score ${hero.score >= 0 ? '+' : ''}${(hero.score * 100).toFixed(1)}%`
                             : `CR ${hero.score >= 0 ? '+' : ''}${(hero.score * 100).toFixed(1)}%`}
                         </p>
                       </div>
@@ -968,38 +1258,60 @@ export default function DraftClient({
                     <div className="bg-red-500" style={{ width: `${winProb.red}%` }} />
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:text-sm">
-                    <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-left">
-                      <p className="text-[10px] uppercase tracking-wider text-blue-200/80">{blueTeamLabel} Avg WR</p>
-                      <p className="text-xl font-black text-blue-300 mt-1">{(bluePickStats.avg * 100).toFixed(1)}%</p>
-                    </div>
-                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-left">
-                      <p className="text-[10px] uppercase tracking-wider text-red-200/80">{redTeamLabel} Avg WR</p>
-                      <p className="text-xl font-black text-red-300 mt-1">{(redPickStats.avg * 100).toFixed(1)}%</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid md:grid-cols-2 gap-3 text-left">
-                    <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Blue Pick Contribution</p>
-                      <div className="space-y-1.5">
-                        {bluePickStats.rates.map((item) => (
-                          <div key={item.hero.hero_id} className="flex items-center justify-between text-xs">
-                            <span className="text-gray-300 truncate pr-2">{item.hero.name}</span>
-                            <span className="text-blue-300 font-bold">{(item.rate * 100).toFixed(1)}%</span>
-                          </div>
-                        ))}
+                  <div className="mt-5 rounded-xl border border-white/10 bg-[#0f1117] p-3 md:p-4 text-left">
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-blue-200/80">{blueTeamLabel}</p>
+                        <p className="mt-1 text-[11px] text-blue-100/80">Counter Index</p>
+                        <p className="text-xl font-black text-blue-300">{counterIndex.blue.toFixed(1)}</p>
+                        <p className="mt-1 text-[11px] text-blue-100/80">Line Up Rating</p>
+                        <p className="text-xl font-black text-blue-300">{blueLineupRating.toFixed(1)}</p>
+                      </div>
+                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-red-200/80">{redTeamLabel}</p>
+                        <p className="mt-1 text-[11px] text-red-100/80">Counter Index</p>
+                        <p className="text-xl font-black text-red-300">{counterIndex.red.toFixed(1)}</p>
+                        <p className="mt-1 text-[11px] text-red-100/80">Line Up Rating</p>
+                        <p className="text-xl font-black text-red-300">{redLineupRating.toFixed(1)}</p>
                       </div>
                     </div>
-                    <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Red Pick Contribution</p>
-                      <div className="space-y-1.5">
-                        {redPickStats.rates.map((item) => (
-                          <div key={item.hero.hero_id} className="flex items-center justify-between text-xs">
-                            <span className="text-gray-300 truncate pr-2">{item.hero.name}</span>
-                            <span className="text-red-300 font-bold">{(item.rate * 100).toFixed(1)}%</span>
+
+                    <div className="space-y-2.5">
+                      {METRIC_LABELS.map((metric) => {
+                        const blueValue = blueTeamProfile[metric.key];
+                        const redValue = redTeamProfile[metric.key];
+                        const total = Math.max(0.1, blueValue + redValue);
+                        const blueWidth = (blueValue / total) * 100;
+                        const redWidth = (redValue / total) * 100;
+
+                        return (
+                          <div key={metric.key}>
+                            <div className="mb-1 flex items-center justify-between text-[11px] font-bold uppercase tracking-wide">
+                              <span className="text-blue-300">{blueValue.toFixed(2)}</span>
+                              <span className="text-gray-200">{metric.label}</span>
+                              <span className="text-red-300">{redValue.toFixed(2)}</span>
+                            </div>
+                            <div className="h-4 overflow-hidden rounded-sm bg-white/10">
+                              <div className="flex h-full w-full">
+                                <div className="h-full bg-blue-500/80" style={{ width: `${blueWidth}%` }} />
+                                <div className="h-full bg-red-500/80" style={{ width: `${redWidth}%` }} />
+                              </div>
+                            </div>
                           </div>
-                        ))}
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:text-sm">
+                      <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-left">
+                        <p className="text-[10px] uppercase tracking-wider text-blue-200/80">{blueTeamLabel} Line Up Rating</p>
+                        <p className="text-xl font-black text-blue-300 mt-1">{blueLineupRating.toFixed(1)}</p>
+                        <p className="text-[10px] text-blue-200/70 mt-1">Avg WR {(bluePickStats.avg * 100).toFixed(1)}%</p>
+                      </div>
+                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-left">
+                        <p className="text-[10px] uppercase tracking-wider text-red-200/80">{redTeamLabel} Line Up Rating</p>
+                        <p className="text-xl font-black text-red-300 mt-1">{redLineupRating.toFixed(1)}</p>
+                        <p className="text-[10px] text-red-200/70 mt-1">Avg WR {(redPickStats.avg * 100).toFixed(1)}%</p>
                       </div>
                     </div>
                   </div>

@@ -20,6 +20,8 @@ export default function Navbar() {
     { href: "/items", label: "Item" },
     { href: "/rankings", label: "Rankings" },
     { href: "/draftsimulator", label: "Draft Simulator" },
+    { href: "/mpl-id", label: "MPL ID" },
+    { href: "/docs", label: "Docs" },
   ];
 
   return (

@@ -2,10 +2,56 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mlbb.mfchmufid.my.id";
+
 export const metadata: Metadata = {
-  title: "Draft Whisperer — Hero Stats, Counter & Synergy",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Draft Whisperer - Hero Stats, Counter and Synergy",
+    template: "%s | Draft Whisperer",
+  },
   description:
     "Mobile Legends: Bang Bang hero analytics — Win Rate, Ban Rate, Counter, and Synergy.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName: "Draft Whisperer",
+    title: "Draft Whisperer - Hero Stats, Counter and Synergy",
+    description:
+      "Mobile Legends: Bang Bang hero analytics — Win Rate, Ban Rate, Counter, and Synergy.",
+    images: [
+      {
+        url: "/logo.webp",
+        width: 512,
+        height: 512,
+        alt: "Draft Whisperer",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Draft Whisperer - Hero Stats, Counter and Synergy",
+    description:
+      "Mobile Legends: Bang Bang hero analytics — Win Rate, Ban Rate, Counter, and Synergy.",
+    images: ["/logo.webp"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+  },
   icons: {
     icon: [{ url: "/logo.webp", type: "image/webp" }],
     shortcut: [{ url: "/logo.webp", type: "image/webp" }],

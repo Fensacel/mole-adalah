@@ -113,13 +113,16 @@ export default async function MplIdPage() {
 
         {teams.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {teams.map((team) => (
-              <article key={team.team_name} className="rounded-xl border border-white/10 bg-[#0b1020] p-4">
+            {teams.map((team) => {
+              const teamId = extractMplTeamId(team.team_url) ?? "unknown";
+
+              return (
+                <article key={team.team_name} className="rounded-xl border border-white/10 bg-[#0b1020] p-4">
                 <div className="mb-3 flex items-center gap-3">
                   <div className="h-12 w-12 overflow-hidden rounded-lg border border-white/10 bg-[#10192d]">
-                    {team.team_logo ? (
+                    {teamId !== "unknown" ? (
                       <img
-                        src={team.team_logo}
+                        src={`/api/mplid/teams/${teamId}/logo`}
                         alt={team.team_name}
                         className="h-full w-full object-cover"
                         loading="lazy"
@@ -136,7 +139,7 @@ export default async function MplIdPage() {
                 </div>
                 {team.team_url ? (
                   <Link
-                    href={`/mpl-id/teams/${extractMplTeamId(team.team_url) ?? "unknown"}`}
+                    href={`/mpl-id/teams/${teamId}`}
                     className="inline-flex rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
                   >
                     View Team Detail
@@ -146,8 +149,9 @@ export default async function MplIdPage() {
                     Team URL unavailable
                   </span>
                 )}
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm text-yellow-100">

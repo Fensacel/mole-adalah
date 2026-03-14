@@ -742,6 +742,15 @@ export async function getMplIdTeams(): Promise<MplIdTeam[]> {
     }));
 }
 
+export async function getMplIdTeamById(teamId: string): Promise<MplIdTeam | null> {
+  const normalized = teamId.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const teams = await getMplIdTeams();
+  const match = teams.find((team) => extractMplTeamId(team.team_url) === normalized);
+  return match ?? null;
+}
+
 export function extractMplTeamId(teamUrl: string): string | null {
   if (!teamUrl || typeof teamUrl !== "string") return null;
   const normalized = teamUrl.trim().replace(/\/+$/, "");

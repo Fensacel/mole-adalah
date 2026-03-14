@@ -74,7 +74,7 @@ function renderCell(column: string, value: string | number | boolean | null | un
   return text;
 }
 
-export default function MplDataTableSection(props: MplDataTableSectionProps) {
+    export default function MplDataTableSection(props: MplDataTableSectionProps) {
   const {
     title,
     description,

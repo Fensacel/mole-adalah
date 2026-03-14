@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getMplIdEndpointHealth, getMplIdHeroStats } from "@/lib/api";
 import MplDataTableSection from "../_components/MplDataTableSection";
 
+export const runtime = "edge";
+
 export const metadata: Metadata = {
   title: "MPL ID Hero Stats - Draft Whisperer",
   description: "Hero stats MPL Indonesia.",

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getMplIdTeamDetail } from "@/lib/api";
 import { ArrowLeft, Facebook, Instagram, Youtube } from "lucide-react";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ teamId: string }>;
 }

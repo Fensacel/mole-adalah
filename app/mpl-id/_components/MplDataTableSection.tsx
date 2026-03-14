@@ -74,14 +74,15 @@ function renderCell(column: string, value: string | number | boolean | null | un
   return text;
 }
 
-export default function MplDataTableSection({
-  title,
-  description,
-  data,
-  health,
-  backHref = "/mpl-id",
-  backLabel = "Back to MPL ID",
-}: MplDataTableSectionProps) {
+export default function MplDataTableSection(props: MplDataTableSectionProps) {
+  const {
+    title,
+    description,
+    data,
+    backHref = "/mpl-id",
+    backLabel = "Back to MPL ID",
+  } = props;
+
   const columns = Array.from(new Set(data.flatMap((row) => Object.keys(row))));
 
   return (
